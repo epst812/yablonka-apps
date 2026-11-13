@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14231b">
+<title>Перемещения</title>
+<link rel="manifest" href="manifest.json">
+<script src="config.js"></script>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#0f1311; --card:#181e1b; --card2:#1f2622; --ink:#e7ece8; --muted:#97a39c; --line:#2a332e;
+  --head:#14231b; --green:#3d9a64; --green-ink:#7fd3a0; --green-soft:#183324;
+  --amber:#f0b44c; --amber-soft:#3a2c12; --blue:#4d8ce8; --blue-ink:#9cc0f5; --blue-soft:#172a45;
+  --red:#ef7b6f; --red-soft:#3a1d1a; --grey-soft:#232a26;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+button{font:inherit;cursor:pointer;border:0;color:inherit}
+input,textarea{font:inherit;color:var(--ink)}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px 120px}
+header{position:sticky;top:0;z-index:5;background:var(--head);color:#fff;padding:14px 16px 12px;padding-top:max(14px,env(safe-area-inset-top));border-bottom:1px solid var(--line)}
+header .row{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;margin:0;flex:1;font-weight:650}
+header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.hbtn{background:var(--grey-soft);color:var(--ink);border-radius:10px;padding:7px 11px;font-size:14px}
+.demo{background:var(--amber-soft);color:var(--amber);font-size:13px;text-align:center;padding:6px 16px}
+.pushbar{display:flex;align-items:center;gap:10px;background:var(--blue-soft);color:var(--blue-ink);border-radius:12px;padding:10px 12px;margin-top:12px;font-size:14px}
+.pushbar span{flex:1}
+.pushbar button{background:var(--blue);color:#fff;border-radius:10px;padding:8px 12px;font-weight:650}
+.tabs{display:flex;gap:6px;margin:14px 0 6px;background:var(--grey-soft);padding:4px;border-radius:12px}
+.tabs button{flex:1;padding:9px;border-radius:9px;background:transparent;color:var(--muted);font-weight:600;position:relative}
+.tabs button.on{background:var(--card2);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.badge{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:#d6493d;color:#fff;font-size:12px;line-height:20px}
+.sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:18px 2px 8px;font-weight:600}
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;border:1px solid var(--line)}
+.card.need{border:2px solid var(--amber)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.route{font-weight:650;font-size:17px}
+.meta{color:var(--muted);font-size:13px;margin-top:2px}
+.pill{font-size:12px;font-weight:650;padding:4px 9px;border-radius:20px;white-space:nowrap}
+.s-new{background:var(--amber-soft);color:var(--amber)}
+.s-acc{background:var(--blue-soft);color:var(--blue-ink)}
+.s-ok{background:var(--green-soft);color:var(--green-ink)}
+.s-rej{background:var(--red-soft);color:var(--red)}
+.s-can{background:var(--grey-soft);color:var(--muted)}
+.items{margin:10px 0 0;padding:0;list-style:none;border-top:1px dashed var(--line)}
+.items li{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line)}
+.items li:last-child{border-bottom:0}
+.diff{color:var(--red);font-weight:600;font-size:13px;margin-left:6px}
+.note{background:var(--grey-soft);border-radius:10px;padding:8px 10px;margin-top:8px;font-size:14px;color:#c9d1cc}
+.hint{font-size:14px;color:var(--muted);margin-top:10px}
+.acts{display:flex;gap:8px;margin-top:12px}
+.btn{flex:1;padding:13px;border-radius:12px;font-weight:650;font-size:16px}
+.btn.pri{background:var(--green);color:#fff}
+.btn.blue{background:var(--blue);color:#fff}
+.btn.ghost{background:var(--grey-soft);color:var(--ink)}
+.btn.danger{background:var(--red-soft);color:var(--red)}
+.btn:disabled{opacity:.5}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:528px;padding:16px;border-radius:16px;background:var(--green);color:#fff;font-weight:700;font-size:17px;box-shadow:0 6px 24px rgba(0,0,0,.5);z-index:6}
+.pick h2{font-size:22px;margin:26px 0 6px}
+.pick p{color:var(--muted);margin:0 0 16px}
+.choice{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px;font-size:17px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:11px 16px;border-radius:12px;background:var(--card);border:1.5px solid var(--line);font-weight:600}
+.chip.on{border-color:var(--green);background:var(--green-soft);color:var(--green-ink)}
+.search{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);margin-bottom:8px}
+.prod{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 14px;margin-bottom:6px}
+.prod.sel{border-color:var(--green);background:#16241c}
+.prod .n{flex:1;font-weight:550}
+.prod .u{color:var(--muted);font-size:13px;font-weight:400}
+.step{display:flex;align-items:center;gap:4px}
+.step button{width:42px;height:42px;border-radius:10px;background:var(--grey-soft);font-size:22px;line-height:1}
+.step input{width:58px;height:42px;text-align:center;border:1px solid var(--line);border-radius:10px;font-weight:650;background:var(--card2)}
+textarea{width:100%;min-height:70px;padding:12px;border-radius:12px;border:1px solid var(--line);resize:vertical;background:var(--card)}
+.back{background:none;color:var(--green-ink);font-weight:600;padding:16px 0 0}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet .box{background:var(--bg);border-top:1px solid var(--line);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px max(18px,env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+.sheet h3{margin:0 0 4px;font-size:19px}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 70px);transform:translateX(-50%);background:#e7ece8;color:#0f1311;padding:10px 16px;border-radius:12px;z-index:30;font-size:15px;max-width:90%;text-align:center;font-weight:550}
+.loading{opacity:.6;pointer-events:none}
+</style>
+</head>
+<body>
+<header><div class="row"><h1 id="title">Перемещения</h1><span id="hright"></span></div></header>
+<div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Меняйте точку, чтобы сыграть за обе стороны.</div>
+<main class="wrap" id="app"></main>
+<div id="layer"></div>
+
+<script>
+/* ===== Настройки — в config.js ===== */
+const CONF = window.APP_CONFIG || {};
+const API_URL = CONF.API_URL || '';
+const PUSH_CONFIGURED = !!(CONF.FIREBASE && CONF.FIREBASE.apiKey && CONF.VAPID_KEY);
+const FB_VER = '10.12.2';
+const POLL_MS = 15000;
+
+/* ===== Хранилище на устройстве (точка) ===== */
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ===== API ===== */
+async function api(action, data = {}){
+  if(!API_URL) return mock(action, data);
+  const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action, ...data})});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error || 'Ошибка');
+  return j.data;
+}
+
+/* ===== Демо-сервер (та же логика, что в Code.gs) ===== */
+const DEMO_CFG = {
+  points:[{city:'Пенза',point:'Точка 1'},{city:'Пенза',point:'Точка 2'},{city:'Пенза',point:'Точка 3'},
+          {city:'Балаково',point:'Точка 4'},{city:'Балаково',point:'Точка 5'},{city:'Балаково',point:'Точка 6'}],
+  products:[{name:'Круассан',unit:'шт'},{name:'Синнабон',unit:'шт'},{name:'Йогурт',unit:'шт'},{name:'Эклер',unit:'шт'},
+            {name:'Пирожок с вишней',unit:'шт'},{name:'Молоко 3,2%',unit:'л'},{name:'Сливки 33%',unit:'л'},{name:'Кофе в зёрнах',unit:'кг'}]
+};
+let demoDB = store.get('demo_db') || [];
+function mock(action, p){
+  return new Promise((res, rej) => setTimeout(() => {
+    try{
+      const cityOf = pt => (DEMO_CFG.points.find(x=>x.point===pt)||{}).city;
+      const find = id => { const t = demoDB.find(x=>x.id===id); if(!t) throw new Error('Заявка не найдена'); return t; };
+      const guard = (t, side, from) => {
+        const owner = side==='to'?t.to:t.from;
+        if(owner!==p.point) throw new Error('Это действие доступно только точке «'+owner+'»');
+        if(t.status!==from) throw new Error('Заявка уже в статусе «'+t.status+'»');
+      };
+      let out;
+      switch(action){
+        case 'config': out = DEMO_CFG; break;
+        case 'list': out = demoDB.filter(t=>t.from===p.point||t.to===p.point).sort((a,b)=>b.created.localeCompare(a.created)); break;
+        case 'create': {
+          if(p.from===p.to) throw new Error('Нельзя переместить на свою же точку');
+          if(cityOf(p.from)!==cityOf(p.to)) throw new Error('Перемещение возможно только внутри города');
+          const units = Object.fromEntries(DEMO_CFG.products.map(x=>[x.name,x.unit]));
+          const id = 'П-'+Date.now().toString().slice(-6);
+          demoDB.push({id, created:new Date().toISOString(), city:cityOf(p.from), from:p.from, to:p.to, status:'Новая',
+            accepted:'', received:'', comment:p.comment||'', reason:'',
+            items:p.items.map(i=>({product:i.product, qty:+i.qty, unit:units[i.product]||'шт', got:null}))});
+          out = {id}; break;
+        }
+        case 'accept': { const t=find(p.id); guard(t,'to','Новая'); t.status='Принята'; t.accepted=new Date().toISOString(); out={}; break; }
+        case 'reject': { const t=find(p.id); guard(t,'to','Новая'); t.status='Отклонена'; t.reason=p.reason||''; out={}; break; }
+        case 'cancel': { const t=find(p.id); guard(t,'from','Новая'); t.status='Отменена'; out={}; break; }
+        case 'receive': { const t=find(p.id); guard(t,'to','Принята'); t.status='Получена'; t.received=new Date().toISOString();
+          const got = Object.fromEntries((p.items||[]).map(i=>[i.product,+i.qty]));
+          t.items.forEach(i=>i.got = got[i.product] ?? i.qty); out={}; break; }
+        default: throw new Error('Неизвестное действие');
+      }
+      store.set('demo_db', demoDB);
+      res(JSON.parse(JSON.stringify(out)));
+    }catch(e){ rej(e); }
+  }, 250));
+}
+
+/* ===== Состояние ===== */
+const S = {
+  cfg:null, me: store.get('point'), view:'list', tab:'in', list:[], pickCity:null,
+  draft:{to:null, qty:{}, comment:'', q:''}, seen: new Set(store.get('seen')||[])
+};
+const $app = document.getElementById('app'), $layer = document.getElementById('layer');
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtT = iso => { if(!iso) return ''; const d=new Date(iso), n=new Date();
+  const t = d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  return d.toDateString()===n.toDateString() ? 'сегодня, '+t : d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+t; };
+const num = v => { const x = parseFloat(String(v).replace(',','.')); return isFinite(x)&&x>0 ? Math.round(x*1000)/1000 : 0; };
+const myCity = () => S.me && S.me.city;
+
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2600); }
+
+/* ===== Пуш-уведомления (Firebase Cloud Messaging) ===== */
+let swReg = null, messaging = null;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function loadScript(src){ return new Promise((ok, fail)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>fail(new Error('Не загрузился '+src)); document.head.appendChild(s); }); }
+async function getMessaging(){
+  if(messaging) return messaging;
+  if(!window.firebase){
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app-compat.js`);
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-messaging-compat.js`);
+  }
+  if(!firebase.apps.length) firebase.initializeApp(CONF.FIREBASE);
+  messaging = firebase.messaging();
+  messaging.onMessage(m=>{ const d=m.data||{}; toast(d.title||'Обновление заявок'); if(navigator.vibrate) navigator.vibrate([120,60,120]); refresh(true); });
+  return messaging;
+}
+/* 'off' — пуши не настроены; 'ios-install' — нужно добавить на экран Домой; 'ask'; 'on'; 'denied' */
+function pushStatus(){
+  if(!PUSH_CONFIGURED || !swReg) return 'off';
+  if(!('Notification' in window) || !('PushManager' in window)) return isIOS && !isStandalone ? 'ios-install' : 'off';
+  if(Notification.permission==='denied') return 'denied';
+  if(Notification.permission==='granted'){ const sub=store.get('push_sub'); return sub && sub.point===S.me.point ? 'on' : 'ask'; }
+  return 'ask';
+}
+async function enablePush(silent){
+  try{
+    const perm = Notification.permission==='granted' ? 'granted' : await Notification.requestPermission();
+    if(perm!=='granted'){ if(!silent) toast('Уведомления запрещены в настройках телефона'); render(); return; }
+    const m = await getMessaging();
+    const token = await m.getToken({vapidKey: CONF.VAPID_KEY, serviceWorkerRegistration: swReg});
+    if(!token) throw new Error('Не удалось получить токен');
+    await api('subscribe', {point:S.me.point, token});
+    store.set('push_sub', {point:S.me.point, token});
+    if(!silent) toast('Уведомления включены');
+  }catch(e){ if(!silent) toast('Уведомления: '+e.message); }
+  render();
+}
+
+/* ===== Загрузка ===== */
+async function boot(){
+  document.getElementById('demo').hidden = !!API_URL;
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    try{ swReg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready; }catch(e){}
+    navigator.serviceWorker.addEventListener('message', ev=>{ if(ev.data&&ev.data.type==='refresh' && S.me) refresh(true); });
+  }
+  try{ S.cfg = await api('config'); }
+  catch(e){ $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="boot()">Повторить</button></div>`; return; }
+  if(S.me && !S.cfg.points.some(p=>p.point===S.me.point)) S.me = null;
+  S.view = S.me ? 'list' : 'pick';
+  if(S.me) await refresh(); else render();
+  if(S.me && API_URL && PUSH_CONFIGURED && 'Notification' in window && Notification.permission==='granted') enablePush(true); // обновить токен
+  setInterval(()=>{ if(S.me && document.visibilityState==='visible' && S.view==='list') refresh(true); }, POLL_MS);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && S.me) refresh(true); });
+}
+
+async function refresh(silent){
+  try{
+    S.list = await api('list', {point:S.me.point});
+    const incomingNew = S.list.filter(t=>t.to===S.me.point && t.status==='Новая');
+    const fresh = incomingNew.filter(t=>!S.seen.has(t.id));
+    if(silent && fresh.length){ toast('Новая заявка от '+fresh[0].from); if(navigator.vibrate) navigator.vibrate([120,60,120]); }
+    incomingNew.forEach(t=>S.seen.add(t.id)); store.set('seen',[...S.seen].slice(-300));
+  }catch(e){ if(!silent) toast(e.message); }
+  if(S.view==='list') render();
+}
+
+/* ===== Отрисовка ===== */
+function header(){
+  const t = document.getElementById('title'), r = document.getElementById('hright');
+  if(!S.me){ t.innerHTML='Перемещения'; r.innerHTML=''; return; }
+  t.innerHTML = `${esc(S.me.point)}<small>${esc(S.me.city)} · перемещения</small>`;
+  r.innerHTML = S.view==='list' ? `<button class="hbtn" data-a="change">Сменить точку</button>` : '';
+}
+
+function render(){
+  header();
+  if(S.view==='pick') return renderPick();
+  if(S.view==='new') return renderNew();
+  renderList();
+}
+
+function renderPick(){
+  const cities = [...new Set(S.cfg.points.map(p=>p.city))];
+  if(!S.pickCity){
+    $app.innerHTML = `<div class="pick">${S.me?'<button class="back" data-a="cancelnew">← Назад</button>':''}<h2>Ваш город</h2><p>Выбирается один раз на этом телефоне.</p>
+      ${cities.map(c=>`<button class="choice" data-a="city" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
+  } else {
+    const pts = S.cfg.points.filter(p=>p.city===S.pickCity);
+    $app.innerHTML = `<div class="pick"><button class="back" data-a="pickback">← Город</button><h2>Ваша точка</h2><p>${esc(S.pickCity)}</p>
+      ${pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${esc(p.point)}</button>`).join('')}</div>`;
+  }
+}
+
+const PILL = {'Новая':['s-new','Ждёт принятия'],'Принята':['s-acc','Принята, в пути'],'Получена':['s-ok','Получена'],'Отклонена':['s-rej','Отклонена'],'Отменена':['s-can','Отменена']};
+
+function card(t){
+  const incoming = t.to===S.me.point;
+  const [cls,label] = PILL[t.status]||['s-can',t.status];
+  const need = incoming && (t.status==='Новая'||t.status==='Принята');
+  const items = t.items.map(i=>{
+    const d = (t.status==='Получена' && i.got!=null && +i.got!==+i.qty) ? `<span class="diff">получено ${esc(i.got)}</span>` : '';
+    return `<li><span>${esc(i.product)}</span><span><b>${esc(i.qty)}</b> ${esc(i.unit)}${d}</span></li>`;
+  }).join('');
+  let acts='', hint='';
+  if(incoming && t.status==='Новая') acts = `<button class="btn danger" data-a="reject" data-id="${esc(t.id)}">Отклонить</button><button class="btn pri" data-a="accept" data-id="${esc(t.id)}">Принять</button>`;
+  else if(incoming && t.status==='Принята'){ hint='Нажмите, когда товар будет у вас.'; acts = `<button class="btn blue" data-a="receive" data-id="${esc(t.id)}">Получили</button>`; }
+  else if(!incoming && t.status==='Новая'){ hint=`Ждём, пока ${esc(t.to)} примет заявку.`; acts = `<button class="btn ghost" data-a="cancel" data-id="${esc(t.id)}">Отменить заявку</button>`; }
+  else if(!incoming && t.status==='Принята') hint = `${esc(t.to)} приняла заявку — передайте товар.`;
+  return `<div class="card ${need?'need':''}">
+    <div class="top"><div><div class="route">${incoming?`От: ${esc(t.from)}`:`Куда: ${esc(t.to)}`}</div>
+      <div class="meta">${esc(t.id)} · ${fmtT(t.created)}${t.received?` · получена ${fmtT(t.received)}`:''}</div></div>
+      <span class="pill ${cls}">${label}</span></div>
+    <ul class="items">${items}</ul>
+    ${t.comment?`<div class="note">💬 ${esc(t.comment)}</div>`:''}
+    ${t.reason?`<div class="note">Причина отказа: ${esc(t.reason)}</div>`:''}
+    ${hint?`<div class="hint">${hint}</div>`:''}
+    ${acts?`<div class="acts">${acts}</div>`:''}
+  </div>`;
+}
+
+function renderList(){
+  const mine = S.me.point;
+  const inc = S.list.filter(t=>t.to===mine), out = S.list.filter(t=>t.from===mine);
+  const needIn = inc.filter(t=>t.status==='Новая'||t.status==='Принята').length;
+  const arr = S.tab==='in' ? inc : out;
+  const active = arr.filter(t=>t.status==='Новая'||t.status==='Принята');
+  const done = arr.filter(t=>!(t.status==='Новая'||t.status==='Принята'));
+  const ps = pushStatus();
+  const pushbar = ps==='ask' ? `<div class="pushbar"><span>Включите уведомления, чтобы не пропускать заявки.</span><button data-a="push">Включить</button></div>`
+    : ps==='ios-install' ? `<div class="pushbar"><span>Для уведомлений на iPhone: «Поделиться» → «На экран Домой», затем откройте приложение с иконки.</span></div>`
+    : ps==='denied' ? `<div class="pushbar"><span>Уведомления запрещены. Разрешите их в настройках телефона для этого приложения.</span></div>` : '';
+  $app.innerHTML = `${pushbar}
+    <div class="tabs">
+      <button class="${S.tab==='in'?'on':''}" data-a="tab" data-v="in">Входящие${needIn?`<span class="badge">${needIn}</span>`:''}</button>
+      <button class="${S.tab==='out'?'on':''}" data-a="tab" data-v="out">Исходящие</button>
+    </div>
+    ${!arr.length?`<div class="empty">${S.tab==='in'?'Входящих заявок пока нет.':'Вы ещё не отправляли заявок.'}</div>`:''}
+    ${active.length?`<div class="sec">Активные</div>${active.map(card).join('')}`:''}
+    ${done.length?`<div class="sec">Завершённые</div>${done.map(card).join('')}`:''}
+    <button class="fab" data-a="new">+ Новое перемещение</button>`;
+}
+
+function renderNew(){
+  const d = S.draft;
+  const others = S.cfg.points.filter(p=>p.city===myCity() && p.point!==S.me.point);
+  const q = d.q.trim().toLowerCase();
+  const prods = S.cfg.products.filter(p=>!q || p.name.toLowerCase().includes(q));
+  const picked = Object.entries(d.qty).filter(([,v])=>num(v)>0);
+  const scrollY = window.scrollY, focus = document.activeElement && document.activeElement.id;
+  $app.innerHTML = `
+    <button class="back" data-a="cancelnew">← Назад</button>
+    <div class="sec">1. Куда передаёте</div>
+    <div class="chips">${others.map(p=>`<button class="chip ${d.to===p.point?'on':''}" data-a="to" data-v="${esc(p.point)}">${esc(p.point)}</button>`).join('') || '<span class="hint">В городе нет других точек.</span>'}</div>
+    <div class="sec">2. Что передаёте</div>
+    <input id="q" class="search" placeholder="Найти товар…" value="${esc(d.q)}" autocomplete="off">
+    ${prods.map(p=>{ const v = d.qty[p.name]; const on = num(v)>0;
+      return `<div class="prod ${on?'sel':''}"><div class="n">${esc(p.name)} <span class="u">${esc(p.unit)}</span></div>
+        <div class="step"><button data-a="minus" data-v="${esc(p.name)}" aria-label="меньше">−</button>
+        <input inputmode="decimal" data-qty="${esc(p.name)}" value="${on?esc(v):''}" placeholder="0">
+        <button data-a="plus" data-v="${esc(p.name)}" aria-label="больше">+</button></div></div>`; }).join('') || '<div class="hint">Ничего не найдено.</div>'}
+    <div class="sec">Комментарий (необязательно)</div>
+    <textarea id="comment" placeholder="Например: заберёт курьер в 15:00">${esc(d.comment)}</textarea>
+    <button class="fab" data-a="send" ${!d.to||!picked.length?'disabled style="opacity:.5"':''}>
+      ${!d.to?'Выберите точку':!picked.length?'Добавьте товары':`Отправить заявку · ${picked.length} поз.`}</button>`;
+  window.scrollTo(0, scrollY);
+  if(focus==='q'){ const el=document.getElementById('q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
+
+/* ===== Окна ===== */
+function sheet(html){ $layer.innerHTML = `<div class="sheet" data-a="close"><div class="box">${html}</div></div>`; }
+function closeSheet(){ $layer.innerHTML=''; }
+
+function openReceive(t){
+  sheet(`<h3>Получение от ${esc(t.from)}</h3><p class="hint" style="margin-top:0">Проверьте количество. Если пришло не всё — исправьте цифру.</p>
+    ${t.items.map(i=>`<div class="prod"><div class="n">${esc(i.product)} <span class="u">${esc(i.unit)} · ждали ${esc(i.qty)}</span></div>
+      <div class="step"><input inputmode="decimal" data-got="${esc(i.product)}" value="${esc(i.qty)}"></div></div>`).join('')}
+    <div class="acts"><button class="btn ghost" data-a="close">Назад</button><button class="btn pri" data-a="doreceive" data-id="${esc(t.id)}">Подтвердить</button></div>`);
+}
+function openReject(t){
+  sheet(`<h3>Отклонить заявку от ${esc(t.from)}?</h3>
+    <textarea id="reason" placeholder="Причина (необязательно)"></textarea>
+    <div class="acts"><button class="btn ghost" data-a="close">Назад</button><button class="btn danger" data-a="doreject" data-id="${esc(t.id)}">Отклонить</button></div>`);
+}
+
+/* ===== Действия ===== */
+async function act(fn, okMsg){
+  document.body.classList.add('loading');
+  try{ await fn(); if(okMsg) toast(okMsg); closeSheet(); await refresh(); }
+  catch(e){ toast(e.message); }
+  finally{ document.body.classList.remove('loading'); }
+}
+const byId = id => S.list.find(t=>t.id===id);
+
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-a]'); if(!b) return;
+  const a = b.dataset.a, v = b.dataset.v, id = b.dataset.id;
+  if(a==='close' && e.target!==b && b.classList.contains('sheet')) return;
+  switch(a){
+    case 'city': S.pickCity=v; render(); break;
+    case 'pickback': S.pickCity=null; render(); break;
+    case 'point': { const p=S.cfg.points.find(x=>x.point===v); S.me=p; store.set('point',p); S.view='list'; S.tab='in'; S.pickCity=null;
+      refresh().then(()=>{ if(API_URL && pushStatus()==='ask' && Notification.permission==='granted') enablePush(true); }); break; }
+    case 'push': enablePush(false); break;
+    case 'change': S.view='pick'; S.pickCity=null; render(); break;
+    case 'tab': S.tab=v; render(); break;
+    case 'new': S.draft={to:null,qty:{},comment:'',q:''}; S.view='new'; render(); window.scrollTo(0,0); break;
+    case 'cancelnew': S.view='list'; render(); break;
+    case 'to': S.draft.to=v; render(); break;
+    case 'plus': case 'minus': { const p=S.cfg.products.find(x=>x.name===v); const stepv = p&&p.unit==='шт'?1:(p&&p.unit==='кг'||p&&p.unit==='л'?0.5:1);
+      let x = num(S.draft.qty[v]) + (a==='plus'?stepv:-stepv); x = Math.max(0, Math.round(x*1000)/1000);
+      if(x) S.draft.qty[v]=x; else delete S.draft.qty[v]; render(); break; }
+    case 'send': {
+      const items = Object.entries(S.draft.qty).filter(([,q])=>num(q)>0).map(([product,qty])=>({product, qty:num(qty)}));
+      if(!S.draft.to||!items.length) return;
+      act(async()=>{ await api('create',{from:S.me.point,to:S.draft.to,items,comment:S.draft.comment.trim()}); S.view='list'; S.tab='out'; }, 'Заявка отправлена на '+S.draft.to);
+      break; }
+    case 'accept': act(()=>api('accept',{id,point:S.me.point}), 'Заявка принята'); break;
+    case 'reject': openReject(byId(id)); break;
+    case 'doreject': act(()=>api('reject',{id,point:S.me.point,reason:(document.getElementById('reason').value||'').trim()}), 'Заявка отклонена'); break;
+    case 'cancel': act(()=>api('cancel',{id,point:S.me.point}), 'Заявка отменена'); break;
+    case 'receive': openReceive(byId(id)); break;
+    case 'doreceive': {
+      const items=[...document.querySelectorAll('[data-got]')].map(el=>({product:el.dataset.got, qty:Math.max(0, parseFloat(String(el.value).replace(',','.'))||0)}));
+      act(()=>api('receive',{id,point:S.me.point,items}), 'Получение записано'); break; }
+    case 'close': closeSheet(); break;
+  }
+});
+
+document.addEventListener('input', e=>{
+  if(e.target.id==='q'){ S.draft.q=e.target.value; render(); }
+  else if(e.target.id==='comment'){ S.draft.comment=e.target.value; }
+  else if(e.target.dataset.qty!==undefined){ const n=e.target.dataset.qty, v=e.target.value;
+    if(num(v)>0) S.draft.qty[n]=v; else delete S.draft.qty[n];
+    e.target.closest('.prod').classList.toggle('sel', num(v)>0);
+    const picked = Object.values(S.draft.qty).filter(x=>num(x)>0).length; const f=document.querySelector('.fab');
+    f.disabled = !S.draft.to||!picked; f.style.opacity = f.disabled?.5:1;
+    f.textContent = !S.draft.to?'Выберите точку':!picked?'Добавьте товары':`Отправить заявку · ${picked} поз.`;
+  }
+});
+
+boot();
+</script>
+</body>
+</html>
