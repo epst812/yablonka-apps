@@ -118,8 +118,10 @@ async function api(action, data = {}){
 const DEMO_CFG = {
   points:[{city:'Пенза',point:'Точка 1'},{city:'Пенза',point:'Точка 2'},{city:'Пенза',point:'Точка 3'},
           {city:'Балаково',point:'Точка 4'},{city:'Балаково',point:'Точка 5'},{city:'Балаково',point:'Точка 6'}],
-  products:[{name:'Круассан',unit:'шт'},{name:'Синнабон',unit:'шт'},{name:'Йогурт',unit:'шт'},{name:'Эклер',unit:'шт'},
-            {name:'Пирожок с вишней',unit:'шт'},{name:'Молоко 3,2%',unit:'л'},{name:'Сливки 33%',unit:'л'},{name:'Кофе в зёрнах',unit:'кг'}]
+  products:[{name:'Круассан шоколадный',unit:'шт',group:'Слоёная выпечка сладкая'},{name:'Круассан с вишней и марципаном',unit:'шт',group:'Слоёная выпечка сладкая'},
+            {name:'Улитка с изюмом',unit:'шт',group:'Слоёная выпечка сладкая'},{name:'Пирожок с вишней',unit:'шт',group:'Пирожки сладкие'},
+            {name:'Пирожок с мясом',unit:'шт',group:'Пирожки сытные'},{name:'Пирог с капустой и яйцом',unit:'кг',group:'Пироги сытные'},
+            {name:'Десерт Киевский',unit:'шт',group:'Десерты'},{name:'Хлеб Бородинский',unit:'шт',group:'Хлеб'},{name:'Каравай русский',unit:'кг',group:'Караваи'}]
 };
 let demoDB = store.get('demo_db') || [];
 function mock(action, p){
@@ -163,7 +165,7 @@ function mock(action, p){
 /* ===== Состояние ===== */
 const S = {
   cfg:null, me: store.get('point'), view:'list', tab:'in', list:[], pickCity:null,
-  draft:{to:null, qty:{}, comment:'', q:''}, seen: new Set(store.get('seen')||[])
+  draft:{to:null, qty:{}, comment:'', q:'', group:''}, seen: new Set(store.get('seen')||[])
 };
 const $app = document.getElementById('app'), $layer = document.getElementById('layer');
 const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -172,6 +174,7 @@ const fmtT = iso => { if(!iso) return ''; const d=new Date(iso), n=new Date();
   return d.toDateString()===n.toDateString() ? 'сегодня, '+t : d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+t; };
 const num = v => { const x = parseFloat(String(v).replace(',','.')); return isFinite(x)&&x>0 ? Math.round(x*1000)/1000 : 0; };
 const myCity = () => S.me && S.me.city;
+const short = p => String(p||'').replace(/^[^—]+—\s*/,'');  // «Пенза — Антонова, 18В» → «Антонова, 18В»
 
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2600); }
 
@@ -245,7 +248,7 @@ async function refresh(silent){
 function header(){
   const t = document.getElementById('title'), r = document.getElementById('hright');
   if(!S.me){ t.innerHTML='Перемещения'; r.innerHTML=''; return; }
-  t.innerHTML = `${esc(S.me.point)}<small>${esc(S.me.city)} · перемещения</small>`;
+  t.innerHTML = `${esc(short(S.me.point))}<small>${esc(S.me.city)} · перемещения</small>`;
   r.innerHTML = S.view==='list' ? `<button class="hbtn" data-a="change">Сменить точку</button>` : '';
 }
 
@@ -264,7 +267,7 @@ function renderPick(){
   } else {
     const pts = S.cfg.points.filter(p=>p.city===S.pickCity);
     $app.innerHTML = `<div class="pick"><button class="back" data-a="pickback">← Город</button><h2>Ваша точка</h2><p>${esc(S.pickCity)}</p>
-      ${pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${esc(p.point)}</button>`).join('')}</div>`;
+      ${pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${esc(short(p.point))}</button>`).join('')}</div>`;
   }
 }
 
@@ -284,7 +287,7 @@ function card(t){
   else if(!incoming && t.status==='Новая'){ hint=`Ждём, пока ${esc(t.to)} примет заявку.`; acts = `<button class="btn ghost" data-a="cancel" data-id="${esc(t.id)}">Отменить заявку</button>`; }
   else if(!incoming && t.status==='Принята') hint = `${esc(t.to)} приняла заявку — передайте товар.`;
   return `<div class="card ${need?'need':''}">
-    <div class="top"><div><div class="route">${incoming?`От: ${esc(t.from)}`:`Куда: ${esc(t.to)}`}</div>
+    <div class="top"><div><div class="route">${incoming?`От: ${esc(short(t.from))}`:`Куда: ${esc(short(t.to))}`}</div>
       <div class="meta">${esc(t.id)} · ${fmtT(t.created)}${t.received?` · получена ${fmtT(t.received)}`:''}</div></div>
       <span class="pill ${cls}">${label}</span></div>
     <ul class="items">${items}</ul>
@@ -320,21 +323,33 @@ function renderList(){
 function renderNew(){
   const d = S.draft;
   const others = S.cfg.points.filter(p=>p.city===myCity() && p.point!==S.me.point);
-  const q = d.q.trim().toLowerCase();
-  const prods = S.cfg.products.filter(p=>!q || p.name.toLowerCase().includes(q));
+  const q = d.q.trim().toLowerCase().replace(/ё/g,'е');
+  const norm = x => x.toLowerCase().replace(/ё/g,'е');
+  const groups = [...new Set(S.cfg.products.map(p=>p.group).filter(Boolean))];
+  const LIMIT = 60;
+  let prods;
+  if(q){ const words=q.split(/\s+/); prods = S.cfg.products.filter(p=>words.every(w=>norm(p.name).includes(w))); }
+  else if(d.group) prods = S.cfg.products.filter(p=>p.group===d.group);
+  else prods = groups.length ? S.cfg.products.filter(p=>num(d.qty[p.name])>0) : S.cfg.products;
+  const more = prods.length - LIMIT; prods = prods.slice(0, LIMIT);
+  const groupChips = !q && groups.length ? `<div class="chips" style="margin:4px 0 10px">${groups.map(g=>`<button class="chip ${d.group===g?'on':''}" data-a="group" data-v="${esc(g)}" style="padding:8px 12px;font-size:14px">${esc(g)}</button>`).join('')}</div>` : '';
+  const listHint = !q && !d.group && groups.length ? `<div class="hint" style="margin:0 0 8px">Начните вводить название или выберите группу.${prods.length?' Выбранные:':''}</div>` : '';
   const picked = Object.entries(d.qty).filter(([,v])=>num(v)>0);
   const scrollY = window.scrollY, focus = document.activeElement && document.activeElement.id;
   $app.innerHTML = `
     <button class="back" data-a="cancelnew">← Назад</button>
     <div class="sec">1. Куда передаёте</div>
-    <div class="chips">${others.map(p=>`<button class="chip ${d.to===p.point?'on':''}" data-a="to" data-v="${esc(p.point)}">${esc(p.point)}</button>`).join('') || '<span class="hint">В городе нет других точек.</span>'}</div>
+    <div class="chips">${others.map(p=>`<button class="chip ${d.to===p.point?'on':''}" data-a="to" data-v="${esc(p.point)}">${esc(short(p.point))}</button>`).join('') || '<span class="hint">В городе нет других точек.</span>'}</div>
     <div class="sec">2. Что передаёте</div>
     <input id="q" class="search" placeholder="Найти товар…" value="${esc(d.q)}" autocomplete="off">
+    ${picked.length?`<div class="note" style="margin:0 0 10px"><b>В заявке:</b> ${picked.map(([n,v])=>{const pr=S.cfg.products.find(x=>x.name===n);return esc(n)+' — '+esc(num(v))+' '+esc(pr?pr.unit:'');}).join(' · ')}</div>`:''}
+    ${groupChips}${listHint}
     ${prods.map(p=>{ const v = d.qty[p.name]; const on = num(v)>0;
       return `<div class="prod ${on?'sel':''}"><div class="n">${esc(p.name)} <span class="u">${esc(p.unit)}</span></div>
         <div class="step"><button data-a="minus" data-v="${esc(p.name)}" aria-label="меньше">−</button>
         <input inputmode="decimal" data-qty="${esc(p.name)}" value="${on?esc(v):''}" placeholder="0">
-        <button data-a="plus" data-v="${esc(p.name)}" aria-label="больше">+</button></div></div>`; }).join('') || '<div class="hint">Ничего не найдено.</div>'}
+        <button data-a="plus" data-v="${esc(p.name)}" aria-label="больше">+</button></div></div>`; }).join('') || (q||d.group ? '<div class="hint">Ничего не найдено.</div>' : '')}
+    ${more>0?`<div class="hint">Ещё ${more} — уточните поиск.</div>`:''}
     <div class="sec">Комментарий (необязательно)</div>
     <textarea id="comment" placeholder="Например: заберёт курьер в 15:00">${esc(d.comment)}</textarea>
     <button class="fab" data-a="send" ${!d.to||!picked.length?'disabled style="opacity:.5"':''}>
@@ -380,9 +395,10 @@ document.addEventListener('click', e=>{
     case 'push': enablePush(false); break;
     case 'change': S.view='pick'; S.pickCity=null; render(); break;
     case 'tab': S.tab=v; render(); break;
-    case 'new': S.draft={to:null,qty:{},comment:'',q:''}; S.view='new'; render(); window.scrollTo(0,0); break;
+    case 'new': S.draft={to:null,qty:{},comment:'',q:'',group:''}; S.view='new'; render(); window.scrollTo(0,0); break;
     case 'cancelnew': S.view='list'; render(); break;
     case 'to': S.draft.to=v; render(); break;
+    case 'group': S.draft.group = S.draft.group===v ? '' : v; render(); break;
     case 'plus': case 'minus': { const p=S.cfg.products.find(x=>x.name===v); const stepv = p&&p.unit==='шт'?1:(p&&p.unit==='кг'||p&&p.unit==='л'?0.5:1);
       let x = num(S.draft.qty[v]) + (a==='plus'?stepv:-stepv); x = Math.max(0, Math.round(x*1000)/1000);
       if(x) S.draft.qty[v]=x; else delete S.draft.qty[v]; render(); break; }
