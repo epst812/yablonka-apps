@@ -1,7 +1,7 @@
 // Настройки приложения. Эти значения не секретные — их можно хранить в открытом репозитории.
 self.APP_CONFIG = {
   // URL веб-приложения Apps Script (…/exec). Пусто = демо-режим.
-  API_URL: '',
+     API_URL: 'https://script.google.com/macros/s/AKfycbxEG4SO5PJs7OSV8xEZpbf-_Akm9Z4vurznSq-Ccm4uIKtePhzgCVrfHDWOPApY8XCI/exec',
 
   // Firebase → Project settings → General → Your apps → Web app → SDK setup and configuration (Config).
   FIREBASE: {
