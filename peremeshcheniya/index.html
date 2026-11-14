@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <script src="config.js?v=4"></script>
 <link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
   --bg:#0f1311; --card:#181e1b; --card2:#1f2622; --ink:#e7ece8; --muted:#97a39c; --line:#2a332e;
@@ -84,9 +84,9 @@ header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
 .item .n small{display:block;color:var(--muted);font-weight:400;font-size:13px}
 .empty-items{color:var(--muted);font-size:14px;padding:14px 2px 0}
 #splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .35s}
-#splash img{width:120px;height:120px;border-radius:28px}
+#splash img{width:min(300px,80vw);height:auto}
 #splash b{font-size:22px;letter-spacing:.01em}
-#splash small{color:var(--muted);font-size:14px;margin-top:-10px}
+#splash small{color:var(--muted);font-size:15px;letter-spacing:.04em}
 #splash.hide{opacity:0;pointer-events:none}
 .pick h2{font-size:22px;margin:26px 0 6px}
 .pick p{color:var(--muted);margin:0 0 16px}
@@ -112,7 +112,7 @@ textarea{width:100%;min-height:70px;padding:12px;border-radius:12px;border:1px s
 </style>
 </head>
 <body>
-<div id="splash"><img src="logo.png" onerror="this.src='icon-512.png'" alt=""><b>Яблонька</b><small>Перемещения</small></div>
+<div id="splash"><img src="logo.png" alt="Яблонька"><small>Перемещения товара</small></div>
 <header><div class="row"><h1 id="title">Перемещения</h1><span id="hright"></span></div></header>
 <div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Меняйте точку, чтобы сыграть за обе стороны.</div>
 <main class="wrap" id="app"></main>

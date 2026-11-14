@@ -32,9 +32,9 @@ self.addEventListener('notificationclick', e => {
   })());
 });
 
-const CACHE = 'peremeshcheniya-v3';
+const CACHE = 'peremeshcheniya-v4';
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'index.html', 'manifest.json', 'icon-192.png'])));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'index.html', 'manifest.json', 'icon-192.png', 'logo.png'])));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => e.waitUntil((async () => {
