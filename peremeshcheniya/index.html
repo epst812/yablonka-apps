@@ -84,10 +84,21 @@ header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
 .item .n small{display:block;color:var(--muted);font-weight:400;font-size:13px}
 .empty-items{color:var(--muted);font-size:14px;padding:14px 2px 0}
 #splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .35s}
-#splash img{width:min(300px,80vw);height:auto}
+#splash img{width:min(180px,50vw);height:auto}
 #splash b{font-size:22px;letter-spacing:.01em}
 #splash small{color:var(--muted);font-size:15px;letter-spacing:.04em}
 #splash.hide{opacity:0;pointer-events:none}
+#installCard{max-width:560px;margin:12px auto 0;padding:0 16px}
+#installCard[hidden]{display:none}
+.install{display:flex;align-items:center;gap:12px;background:var(--green-soft);border:1.5px solid var(--green);border-radius:14px;padding:12px 12px 12px 14px}
+.install img{width:44px;height:44px;border-radius:10px;flex-shrink:0}
+.install .txt{flex:1;min-width:0}
+.install .txt b{display:block;font-size:15px}
+.install .txt span{color:var(--muted);font-size:13px}
+.install button{background:var(--green);color:#fff;border-radius:10px;padding:10px 14px;font-weight:650;font-size:14px;flex-shrink:0}
+.install-steps{margin:0;padding:10px 14px 2px 34px;font-size:14px;color:var(--ink)}
+.install-steps li{margin:4px 0}
+.install-steps[hidden]{display:none}
 .pick h2{font-size:22px;margin:26px 0 6px}
 .pick p{color:var(--muted);margin:0 0 16px}
 .choice{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px;font-size:17px;font-weight:600}
@@ -115,6 +126,10 @@ textarea{width:100%;min-height:70px;padding:12px;border-radius:12px;border:1px s
 <div id="splash"><img src="logo.png" alt="Яблонька"><small>Перемещения товара</small></div>
 <header><div class="row"><h1 id="title">Перемещения</h1><span id="hright"></span></div></header>
 <div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Меняйте точку, чтобы сыграть за обе стороны.</div>
+<div id="installCard" hidden>
+  <div class="install"><img src="icon-192.png" alt=""><div class="txt"><b>Установите приложение</b><span>Иконка «Яблонька» появится на главном экране</span></div><button id="installBtn">Установить</button></div>
+  <ol id="installSteps" class="install-steps" hidden></ol>
+</div>
 <main class="wrap" id="app"></main>
 <div id="layer"></div>
 
@@ -517,6 +532,29 @@ document.addEventListener('keydown', e=>{
   if(!box) return; e.preventDefault();
   const first = document.querySelector('#'+box+' [data-a]'); if(first) first.click();
 });
+
+/* ===== Установка приложения (как в Leftover Control) ===== */
+(function(){
+  const card=document.getElementById('installCard'), btn=document.getElementById('installBtn'), steps=document.getElementById('installSteps');
+  let deferred=null;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+  if(standalone) return;
+  let dismissed=false; try{ dismissed = localStorage.getItem('install_hidden')==='1'; }catch(e){}
+  const ua=navigator.userAgent; let manual;
+  if(/SamsungBrowser/i.test(ua)) manual=['Нажмите ≡ (меню) внизу справа','Выберите «Добавить страницу на» → «Главный экран»','Нажмите «Добавить»'];
+  else if(/YaBrowser/i.test(ua)) manual=['Нажмите ⋮ (меню)','Выберите «Добавить ярлык» / «На главный экран»','Или откройте эту страницу в Chrome — там установка в одно нажатие'];
+  else if(/iPhone|iPad|iPod/i.test(ua)) manual=['Откройте страницу в Safari','Нажмите «Поделиться» (квадрат со стрелкой)','Выберите «На экран Домой» → «Добавить»'];
+  else if(/Android/i.test(ua)) manual=['Нажмите ⋮ (меню) справа вверху','Выберите «Установить приложение» или «Добавить на главный экран»','Нажмите «Установить»'];
+  else manual=['Нажмите значок установки в адресной строке (монитор со стрелкой)','Или ⋮ → «Трансляция, сохранение и отправка» → «Установить страницу как приложение»'];
+  window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferred=e; btn.textContent='Установить'; steps.hidden=true; card.hidden=false; });
+  btn.onclick=()=>{
+    if(deferred){ deferred.prompt(); deferred.userChoice.then(c=>{ if(c&&c.outcome==='accepted') card.hidden=true; }); deferred=null; return; }
+    if(steps.hidden){ steps.innerHTML=manual.map(t=>'<li>'+t+'</li>').join(''); steps.hidden=false; btn.textContent='Скрыть'; }
+    else { steps.hidden=true; btn.textContent='Как установить'; try{ localStorage.setItem('install_hidden','1'); }catch(e){} card.hidden=true; }
+  };
+  window.addEventListener('appinstalled', ()=>{ card.hidden=true; });
+  setTimeout(()=>{ if(!deferred && !dismissed){ btn.textContent='Как установить'; card.hidden=false; } }, 2500);
+})();
 
 boot();
 </script>
