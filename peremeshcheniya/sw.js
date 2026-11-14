@@ -10,8 +10,11 @@ if (PUSH_ON) {
   );
   firebase.initializeApp(CONF.FIREBASE);
   // Сервер шлёт data-сообщения (title, body, id) — показываем их сами.
-  firebase.messaging().onBackgroundMessage(msg => {
+  firebase.messaging().onBackgroundMessage(async msg => {
     const d = msg.data || {};
+    // если приложение открыто где-то в фоне — пусть сразу подтянет новую заявку
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    wins.forEach(w => w.postMessage({ type: 'refresh', id: d.id || '' }));
     return self.registration.showNotification(d.title || 'Перемещения', {
       body: d.body || '',
       tag: d.tag || 'peremeshcheniya',
@@ -27,12 +30,13 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil((async () => {
     const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const w of wins) { if ('focus' in w) { w.postMessage({ type: 'refresh' }); return w.focus(); } }
-    return clients.openWindow('./');
+    const id = (e.notification.data && e.notification.data.id) || '';
+    for (const w of wins) { if ('focus' in w) { w.postMessage({ type: 'refresh', id }); return w.focus(); } }
+    return clients.openWindow('./' + (id ? '?open=' + encodeURIComponent(id) : ''));
   })());
 });
 
-const CACHE = 'peremeshcheniya-v4';
+const CACHE = 'peremeshcheniya-v5';
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'index.html', 'manifest.json', 'icon-192.png', 'logo.png'])));
   self.skipWaiting();
