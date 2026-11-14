@@ -32,9 +32,9 @@ self.addEventListener('notificationclick', e => {
   })());
 });
 
-const CACHE = 'peremeshcheniya-v2';
+const CACHE = 'peremeshcheniya-v3';
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'index.html', 'config.js', 'manifest.json', 'icon-192.png'])));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'index.html', 'manifest.json', 'icon-192.png'])));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => e.waitUntil((async () => {
@@ -45,7 +45,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return; // Google и Firebase не трогаем
   e.respondWith(
-    fetch(e.request).then(r => {
+    fetch(new Request(e.request.url, { cache: 'no-cache' })).then(r => {
       const copy = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy));
       return r;

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14231b">
 <title>Перемещения</title>
 <link rel="manifest" href="manifest.json">
-<script src="config.js"></script>
+<script src="config.js?v=4"></script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
@@ -21,7 +21,7 @@
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
 button{font:inherit;cursor:pointer;border:0;color:inherit}
 input,textarea{font:inherit;color:var(--ink)}
-.wrap{max-width:560px;margin:0 auto;padding:0 16px 120px}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px 140px}
 header{position:sticky;top:0;z-index:5;background:var(--head);color:#fff;padding:14px 16px 12px;padding-top:max(14px,env(safe-area-inset-top));border-bottom:1px solid var(--line)}
 header .row{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px}
 header h1{font-size:18px;margin:0;flex:1;font-weight:650}
@@ -61,7 +61,33 @@ header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
 .btn.danger{background:var(--red-soft);color:var(--red)}
 .btn:disabled{opacity:.5}
 .empty{text-align:center;color:var(--muted);padding:40px 10px}
-.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:528px;padding:16px;border-radius:16px;background:var(--green);color:#fff;font-weight:700;font-size:17px;box-shadow:0 6px 24px rgba(0,0,0,.5);z-index:6}
+.bottombar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px max(12px,env(safe-area-inset-bottom))}
+.fab{display:block;width:100%;max-width:528px;margin:0 auto;padding:16px;border-radius:16px;background:var(--green);color:#fff;font-weight:700;font-size:17px}
+.fab:disabled{background:var(--grey-soft);color:var(--muted);cursor:default}
+.field{position:relative}
+.field svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.field .search{padding-left:42px;margin-bottom:0}
+.sug{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-top:6px;overflow:hidden}
+.sug button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:13px 14px;background:none;border-bottom:1px solid var(--line);font-size:15px}
+.sug button:last-child{border-bottom:0}
+.sug button:active,.sug button:hover{background:var(--card2)}
+.sug .u{color:var(--muted);font-size:13px;flex-shrink:0}
+.sug mark{background:none;color:var(--green-ink);font-weight:700}
+.sug .none{padding:13px 14px;color:var(--muted);font-size:14px}
+.picked{display:flex;align-items:center;gap:12px;background:var(--green-soft);border:1.5px solid var(--green);border-radius:12px;padding:12px 12px 12px 14px}
+.picked .t{flex:1;min-width:0}
+.picked .t b{display:block;font-size:16px}
+.picked .t small{color:var(--muted);font-size:13px}
+.x{width:36px;height:36px;border-radius:10px;background:var(--grey-soft);color:var(--muted);font-size:18px;flex-shrink:0}
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 10px 10px 14px;margin-top:8px}
+.item .n{flex:1;min-width:0;font-weight:600;font-size:15px}
+.item .n small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.empty-items{color:var(--muted);font-size:14px;padding:14px 2px 0}
+#splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .35s}
+#splash img{width:120px;height:120px;border-radius:28px}
+#splash b{font-size:22px;letter-spacing:.01em}
+#splash small{color:var(--muted);font-size:14px;margin-top:-10px}
+#splash.hide{opacity:0;pointer-events:none}
 .pick h2{font-size:22px;margin:26px 0 6px}
 .pick p{color:var(--muted);margin:0 0 16px}
 .choice{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px;font-size:17px;font-weight:600}
@@ -86,6 +112,7 @@ textarea{width:100%;min-height:70px;padding:12px;border-radius:12px;border:1px s
 </style>
 </head>
 <body>
+<div id="splash"><img src="logo.png" onerror="this.src='icon-512.png'" alt=""><b>Яблонька</b><small>Перемещения</small></div>
 <header><div class="row"><h1 id="title">Перемещения</h1><span id="hright"></span></div></header>
 <div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Меняйте точку, чтобы сыграть за обе стороны.</div>
 <main class="wrap" id="app"></main>
@@ -174,6 +201,22 @@ const fmtT = iso => { if(!iso) return ''; const d=new Date(iso), n=new Date();
   return d.toDateString()===n.toDateString() ? 'сегодня, '+t : d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+t; };
 const num = v => { const x = parseFloat(String(v).replace(',','.')); return isFinite(x)&&x>0 ? Math.round(x*1000)/1000 : 0; };
 const myCity = () => S.me && S.me.city;
+const CITIES = CONF.CITIES || ['Пенза','Балаково'];           // где перемещения доступны
+const activePoints = () => S.cfg.points.filter(p=>CITIES.includes(p.city));
+const norm = x => String(x||'').toLowerCase().replace(/ё/g,'е');
+function matchList(list, q, key, limit){
+  const words = norm(q).trim().split(/\s+/).filter(Boolean); if(!words.length) return [];
+  const res = list.filter(x=>{ const n=norm(key(x)); return words.every(w=>n.includes(w)); });
+  res.sort((a,b)=>{ const A=norm(key(a)).startsWith(words[0])?0:1, B=norm(key(b)).startsWith(words[0])?0:1; return A-B || key(a).localeCompare(key(b),'ru'); });
+  return res.slice(0, limit);
+}
+function hl(text, q){ // подсветка совпадений
+  let out = esc(text); norm(q).trim().split(/\s+/).filter(w=>w.length>0).forEach(w=>{
+    const i = norm(text).indexOf(w); if(i<0) return;
+    const part = esc(text.slice(i, i+w.length)); out = out.replace(part, '<mark>'+part+'</mark>'); });
+  return out;
+}
+const SEARCH_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>';
 const short = p => String(p||'').replace(/^[^—]+—\s*/,'');  // «Пенза — Антонова, 18В» → «Антонова, 18В»
 
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2600); }
@@ -217,6 +260,9 @@ async function enablePush(silent){
 }
 
 /* ===== Загрузка ===== */
+const SPLASH_T0 = Date.now();
+function hideSplash(){ const sp=document.getElementById('splash'); if(!sp) return;
+  setTimeout(()=>{ sp.classList.add('hide'); setTimeout(()=>sp.remove(),400); }, Math.max(0, 900-(Date.now()-SPLASH_T0))); }
 async function boot(){
   document.getElementById('demo').hidden = !!API_URL;
   if('serviceWorker' in navigator && location.protocol==='https:'){
@@ -224,10 +270,12 @@ async function boot(){
     navigator.serviceWorker.addEventListener('message', ev=>{ if(ev.data&&ev.data.type==='refresh' && S.me) refresh(true); });
   }
   try{ S.cfg = await api('config'); }
-  catch(e){ $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="boot()">Повторить</button></div>`; return; }
+  catch(e){ hideSplash(); $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="boot()">Повторить</button></div>`; return; }
   if(S.me && !S.cfg.points.some(p=>p.point===S.me.point)) S.me = null;
+  if(S.me && !CITIES.includes(S.me.city)) S.me = null;
   S.view = S.me ? 'list' : 'pick';
   if(S.me) await refresh(); else render();
+  hideSplash();
   if(S.me && API_URL && PUSH_CONFIGURED && 'Notification' in window && Notification.permission==='granted') enablePush(true); // обновить токен
   setInterval(()=>{ if(S.me && document.visibilityState==='visible' && S.view==='list') refresh(true); }, POLL_MS);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && S.me) refresh(true); });
@@ -260,15 +308,23 @@ function render(){
 }
 
 function renderPick(){
-  const cities = [...new Set(S.cfg.points.map(p=>p.city))];
+  const cities = CITIES.filter(c=>S.cfg.points.some(p=>p.city===c));
   if(!S.pickCity){
     $app.innerHTML = `<div class="pick">${S.me?'<button class="back" data-a="cancelnew">← Назад</button>':''}<h2>Ваш город</h2><p>Выбирается один раз на этом телефоне.</p>
       ${cities.map(c=>`<button class="choice" data-a="city" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
   } else {
-    const pts = S.cfg.points.filter(p=>p.city===S.pickCity);
     $app.innerHTML = `<div class="pick"><button class="back" data-a="pickback">← Город</button><h2>Ваша точка</h2><p>${esc(S.pickCity)}</p>
-      ${pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${esc(short(p.point))}</button>`).join('')}</div>`;
+      <div class="field">${SEARCH_ICON}<input id="qme" class="search" placeholder="Найти свою точку…" autocomplete="off"></div>
+      <div id="melist" style="margin-top:10px"></div></div>`;
+    updMe();
   }
+}
+function updMe(){
+  const el = document.getElementById('melist'); if(!el) return;
+  const q = (document.getElementById('qme')||{}).value||'';
+  const all = S.cfg.points.filter(p=>p.city===S.pickCity);
+  const pts = q.trim() ? matchList(all, q, p=>short(p.point), 50) : all;
+  el.innerHTML = pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${q?hl(short(p.point),q):esc(short(p.point))}</button>`).join('') || '<div class="hint">Ничего не найдено.</div>';
 }
 
 const PILL = {'Новая':['s-new','Ждёт принятия'],'Принята':['s-acc','Принята, в пути'],'Получена':['s-ok','Получена'],'Отклонена':['s-rej','Отклонена'],'Отменена':['s-can','Отменена']};
@@ -317,46 +373,68 @@ function renderList(){
     ${!arr.length?`<div class="empty">${S.tab==='in'?'Входящих заявок пока нет.':'Вы ещё не отправляли заявок.'}</div>`:''}
     ${active.length?`<div class="sec">Активные</div>${active.map(card).join('')}`:''}
     ${done.length?`<div class="sec">Завершённые</div>${done.map(card).join('')}`:''}
-    <button class="fab" data-a="new">+ Новое перемещение</button>`;
+    <div class="bottombar"><button class="fab" data-a="new">+ Новое перемещение</button></div>`;
 }
 
 function renderNew(){
   const d = S.draft;
-  const others = S.cfg.points.filter(p=>p.city===myCity() && p.point!==S.me.point);
-  const q = d.q.trim().toLowerCase().replace(/ё/g,'е');
-  const norm = x => x.toLowerCase().replace(/ё/g,'е');
-  const groups = [...new Set(S.cfg.products.map(p=>p.group).filter(Boolean))];
-  const LIMIT = 60;
-  let prods;
-  if(q){ const words=q.split(/\s+/); prods = S.cfg.products.filter(p=>words.every(w=>norm(p.name).includes(w))); }
-  else if(d.group) prods = S.cfg.products.filter(p=>p.group===d.group);
-  else prods = groups.length ? S.cfg.products.filter(p=>num(d.qty[p.name])>0) : S.cfg.products;
-  const more = prods.length - LIMIT; prods = prods.slice(0, LIMIT);
-  const groupChips = !q && groups.length ? `<div class="chips" style="margin:4px 0 10px">${groups.map(g=>`<button class="chip ${d.group===g?'on':''}" data-a="group" data-v="${esc(g)}" style="padding:8px 12px;font-size:14px">${esc(g)}</button>`).join('')}</div>` : '';
-  const listHint = !q && !d.group && groups.length ? `<div class="hint" style="margin:0 0 8px">Начните вводить название или выберите группу.${prods.length?' Выбранные:':''}</div>` : '';
-  const picked = Object.entries(d.qty).filter(([,v])=>num(v)>0);
-  const scrollY = window.scrollY, focus = document.activeElement && document.activeElement.id;
   $app.innerHTML = `
     <button class="back" data-a="cancelnew">← Назад</button>
     <div class="sec">1. Куда передаёте</div>
-    <div class="chips">${others.map(p=>`<button class="chip ${d.to===p.point?'on':''}" data-a="to" data-v="${esc(p.point)}">${esc(short(p.point))}</button>`).join('') || '<span class="hint">В городе нет других точек.</span>'}</div>
+    <div id="toBox"></div>
     <div class="sec">2. Что передаёте</div>
-    <input id="q" class="search" placeholder="Найти товар…" value="${esc(d.q)}" autocomplete="off">
-    ${picked.length?`<div class="note" style="margin:0 0 10px"><b>В заявке:</b> ${picked.map(([n,v])=>{const pr=S.cfg.products.find(x=>x.name===n);return esc(n)+' — '+esc(num(v))+' '+esc(pr?pr.unit:'');}).join(' · ')}</div>`:''}
-    ${groupChips}${listHint}
-    ${prods.map(p=>{ const v = d.qty[p.name]; const on = num(v)>0;
-      return `<div class="prod ${on?'sel':''}"><div class="n">${esc(p.name)} <span class="u">${esc(p.unit)}</span></div>
-        <div class="step"><button data-a="minus" data-v="${esc(p.name)}" aria-label="меньше">−</button>
-        <input inputmode="decimal" data-qty="${esc(p.name)}" value="${on?esc(v):''}" placeholder="0">
-        <button data-a="plus" data-v="${esc(p.name)}" aria-label="больше">+</button></div></div>`; }).join('') || (q||d.group ? '<div class="hint">Ничего не найдено.</div>' : '')}
-    ${more>0?`<div class="hint">Ещё ${more} — уточните поиск.</div>`:''}
+    <div class="field">${SEARCH_ICON}<input id="q" class="search" placeholder="Найти товар…" autocomplete="off" enterkeyhint="search"></div>
+    <div id="sugQ"></div>
+    <div id="items"></div>
     <div class="sec">Комментарий (необязательно)</div>
     <textarea id="comment" placeholder="Например: заберёт курьер в 15:00">${esc(d.comment)}</textarea>
-    <button class="fab" data-a="send" ${!d.to||!picked.length?'disabled style="opacity:.5"':''}>
-      ${!d.to?'Выберите точку':!picked.length?'Добавьте товары':`Отправить заявку · ${picked.length} поз.`}</button>`;
-  window.scrollTo(0, scrollY);
-  if(focus==='q'){ const el=document.getElementById('q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    <div class="bottombar"><button class="fab" data-a="send"></button></div>`;
+  updTo(); updItems(); updSend();
 }
+function updTo(){
+  const box = document.getElementById('toBox'); if(!box) return;
+  const d = S.draft;
+  if(d.to){
+    box.innerHTML = `<div class="picked"><div class="t"><b>${esc(short(d.to))}</b><small>${esc(myCity())}</small></div>
+      <button class="x" data-a="clearto" aria-label="Выбрать другую точку">✕</button></div>`;
+  } else {
+    box.innerHTML = `<div class="field">${SEARCH_ICON}<input id="qp" class="search" placeholder="Найти филиал по адресу…" autocomplete="off" value="${esc(d.qp||'')}"></div><div id="sugP"></div>`;
+    updSugP();
+  }
+}
+function updSugP(){
+  const el = document.getElementById('sugP'); if(!el) return;
+  const q = S.draft.qp||'';
+  if(!q.trim()){ el.innerHTML=''; return; }
+  const list = matchList(activePoints().filter(p=>p.city===myCity() && p.point!==S.me.point), q, p=>short(p.point), 8);
+  el.innerHTML = `<div class="sug">${list.map(p=>`<button data-a="to" data-v="${esc(p.point)}"><span>${hl(short(p.point),q)}</span></button>`).join('') || '<div class="none">Такой точки нет в городе '+esc(myCity())+'</div>'}</div>`;
+}
+function updSugQ(){
+  const el = document.getElementById('sugQ'); if(!el) return;
+  const q = S.draft.q||'';
+  const hint=document.querySelector('.empty-items'); if(hint) hint.hidden = !!q.trim();
+  if(!q.trim()){ el.innerHTML=''; return; }
+  const have = new Set(S.draft.items.map(i=>i.product));
+  const list = matchList(S.cfg.products.filter(p=>!have.has(p.name)), q, p=>p.name, 8);
+  el.innerHTML = `<div class="sug">${list.map(p=>`<button data-a="additem" data-v="${esc(p.name)}"><span>${hl(p.name,q)}</span><span class="u">${esc(p.unit)}</span></button>`).join('') || '<div class="none">Ничего не найдено</div>'}</div>`;
+}
+function updItems(){
+  const el = document.getElementById('items'); if(!el) return;
+  const its = S.draft.items;
+  el.innerHTML = its.length ? its.map(i=>`<div class="item"><div class="n">${esc(i.product)}<small>${esc(i.unit)}</small></div>
+      <div class="step"><button data-a="minus" data-v="${esc(i.product)}" aria-label="Меньше">−</button>
+      <input inputmode="decimal" data-qty="${esc(i.product)}" value="${esc(i.qty)}" aria-label="Количество: ${esc(i.product)}">
+      <button data-a="plus" data-v="${esc(i.product)}" aria-label="Больше">+</button></div>
+      <button class="x" data-a="delitem" data-v="${esc(i.product)}" aria-label="Убрать ${esc(i.product)}">✕</button></div>`).join('')
+    : '<div class="empty-items">Начните вводить название — появятся подсказки.</div>';
+}
+function updSend(){
+  const f = document.querySelector('.fab[data-a=send]'); if(!f) return;
+  const n = S.draft.items.filter(i=>num(i.qty)>0).length;
+  f.disabled = !S.draft.to || !n;
+  f.textContent = !S.draft.to ? 'Выберите точку' : !n ? 'Добавьте товары' : `Отправить заявку · ${n} поз.`;
+}
+const stepOf = unit => unit==='шт' ? 1 : 0.5;
 
 /* ===== Окна ===== */
 function sheet(html){ $layer.innerHTML = `<div class="sheet" data-a="close"><div class="box">${html}</div></div>`; }
@@ -395,17 +473,22 @@ document.addEventListener('click', e=>{
     case 'push': enablePush(false); break;
     case 'change': S.view='pick'; S.pickCity=null; render(); break;
     case 'tab': S.tab=v; render(); break;
-    case 'new': S.draft={to:null,qty:{},comment:'',q:'',group:''}; S.view='new'; render(); window.scrollTo(0,0); break;
+    case 'new': S.draft={to:null,qp:'',items:[],comment:'',q:''}; S.view='new'; render(); window.scrollTo(0,0); setTimeout(()=>{const i=document.getElementById('qp'); if(i) i.focus();},50); break;
     case 'cancelnew': S.view='list'; render(); break;
-    case 'to': S.draft.to=v; render(); break;
-    case 'group': S.draft.group = S.draft.group===v ? '' : v; render(); break;
-    case 'plus': case 'minus': { const p=S.cfg.products.find(x=>x.name===v); const stepv = p&&p.unit==='шт'?1:(p&&p.unit==='кг'||p&&p.unit==='л'?0.5:1);
-      let x = num(S.draft.qty[v]) + (a==='plus'?stepv:-stepv); x = Math.max(0, Math.round(x*1000)/1000);
-      if(x) S.draft.qty[v]=x; else delete S.draft.qty[v]; render(); break; }
+    case 'to': S.draft.to=v; S.draft.qp=''; updTo(); updSend(); if(!S.draft.items.length) document.getElementById('q').focus(); break;
+    case 'clearto': S.draft.to=null; updTo(); updSend(); document.getElementById('qp').focus(); break;
+    case 'additem': { const p=S.cfg.products.find(x=>x.name===v); if(!p) break;
+      S.draft.items.push({product:p.name, unit:p.unit, qty:1}); S.draft.q='';
+      const q=document.getElementById('q'); q.value=''; updSugQ(); updItems(); updSend();
+      const inp=document.querySelector(`[data-qty="${CSS.escape(p.name)}"]`); if(inp){ inp.focus(); inp.select(); } break; }
+    case 'delitem': S.draft.items = S.draft.items.filter(i=>i.product!==v); updItems(); updSend(); break;
+    case 'plus': case 'minus': { const it=S.draft.items.find(i=>i.product===v); if(!it) break;
+      let x = num(it.qty) + (a==='plus'?stepOf(it.unit):-stepOf(it.unit)); x = Math.max(0, Math.round(x*1000)/1000);
+      it.qty = x; const inp=document.querySelector(`[data-qty="${CSS.escape(v)}"]`); if(inp) inp.value=x; updSend(); break; }
     case 'send': {
-      const items = Object.entries(S.draft.qty).filter(([,q])=>num(q)>0).map(([product,qty])=>({product, qty:num(qty)}));
+      const items = S.draft.items.filter(i=>num(i.qty)>0).map(i=>({product:i.product, qty:num(i.qty)}));
       if(!S.draft.to||!items.length) return;
-      act(async()=>{ await api('create',{from:S.me.point,to:S.draft.to,items,comment:S.draft.comment.trim()}); S.view='list'; S.tab='out'; }, 'Заявка отправлена на '+S.draft.to);
+      act(async()=>{ await api('create',{from:S.me.point,to:S.draft.to,items,comment:S.draft.comment.trim()}); S.view='list'; S.tab='out'; }, 'Заявка отправлена: '+short(S.draft.to));
       break; }
     case 'accept': act(()=>api('accept',{id,point:S.me.point}), 'Заявка принята'); break;
     case 'reject': openReject(byId(id)); break;
@@ -420,15 +503,19 @@ document.addEventListener('click', e=>{
 });
 
 document.addEventListener('input', e=>{
-  if(e.target.id==='q'){ S.draft.q=e.target.value; render(); }
-  else if(e.target.id==='comment'){ S.draft.comment=e.target.value; }
-  else if(e.target.dataset.qty!==undefined){ const n=e.target.dataset.qty, v=e.target.value;
-    if(num(v)>0) S.draft.qty[n]=v; else delete S.draft.qty[n];
-    e.target.closest('.prod').classList.toggle('sel', num(v)>0);
-    const picked = Object.values(S.draft.qty).filter(x=>num(x)>0).length; const f=document.querySelector('.fab');
-    f.disabled = !S.draft.to||!picked; f.style.opacity = f.disabled?.5:1;
-    f.textContent = !S.draft.to?'Выберите точку':!picked?'Добавьте товары':`Отправить заявку · ${picked} поз.`;
-  }
+  const t = e.target;
+  if(t.id==='q'){ S.draft.q=t.value; updSugQ(); }
+  else if(t.id==='qp'){ S.draft.qp=t.value; updSugP(); }
+  else if(t.id==='qme'){ updMe(); }
+  else if(t.id==='comment'){ S.draft.comment=t.value; }
+  else if(t.dataset.qty!==undefined){ const it=S.draft.items.find(i=>i.product===t.dataset.qty); if(it){ it.qty=t.value; updSend(); } }
+});
+// Enter в поиске выбирает первую подсказку
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Enter') return;
+  const box = e.target.id==='q' ? 'sugQ' : e.target.id==='qp' ? 'sugP' : e.target.id==='qme' ? 'melist' : null;
+  if(!box) return; e.preventDefault();
+  const first = document.querySelector('#'+box+' [data-a]'); if(first) first.click();
 });
 
 boot();
