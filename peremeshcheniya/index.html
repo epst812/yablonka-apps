@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14231b">
 <title>Перемещения</title>
 <link rel="manifest" href="manifest.json">
-<script src="config.js?v=6"></script>
+<script src="config.js?v=7"></script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -83,6 +83,13 @@ header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
 .item .n{flex:1;min-width:0;font-weight:600;font-size:15px}
 .item .n small{display:block;color:var(--muted);font-weight:400;font-size:13px}
 .empty-items{color:var(--muted);font-size:14px;padding:14px 2px 0}
+input.code{width:100%;font-size:30px;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);margin:6px 0 14px}
+input.code:focus{outline:none;border-color:var(--green)}
+.login{padding-top:30px}
+.login img{display:block;width:150px;margin:0 auto 22px}
+.login h2{font-size:22px;margin:0 0 6px;text-align:center}
+.login p{color:var(--muted);margin:0 0 18px;text-align:center;font-size:15px}
+.login .err{color:var(--red);text-align:center;font-size:14px;min-height:20px;margin-bottom:8px}
 #splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .35s}
 #splash img{width:min(180px,50vw);height:auto}
 #splash b{font-size:22px;letter-spacing:.01em}
@@ -130,7 +137,7 @@ textarea{width:100%;min-height:70px;padding:12px;border-radius:12px;border:1px s
 <body>
 <div id="splash"><img src="logo.png" alt="Яблонька"><small>Перемещения товара</small></div>
 <header><div class="row"><h1 id="title">Перемещения</h1><span id="hright"></span></div></header>
-<div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Меняйте точку, чтобы сыграть за обе стороны.</div>
+<div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Коды: 111111 — Точка 1 … 666666 — Точка 6. «Выйти» — чтобы сыграть за другую точку.</div>
 <div id="installCard" hidden>
   <div class="install"><img src="icon-192.png" alt=""><div class="txt"><b>Установите приложение</b><span>Иконка «Яблонька» появится на главном экране</span></div><button id="installBtn">Установить</button></div>
   <ol id="installSteps" class="install-steps" hidden></ol>
@@ -155,6 +162,7 @@ const store = {
 
 /* ===== API ===== */
 async function api(action, data = {}){
+  if(S && S.me && S.me.code && data.code===undefined) data = {...data, code:S.me.code};
   if(!API_URL) return mock(action, data);
   const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action, ...data})});
   const j = await r.json();
@@ -185,6 +193,8 @@ function mock(action, p){
       let out;
       switch(action){
         case 'config': out = DEMO_CFG; break;
+        case 'login': { const n=String(p.code||'').replace(/\D/g,''); const i='123456'.indexOf(n[0]); // демо: 111111 → Точка 1 … 666666 → Точка 6
+          const pt=DEMO_CFG.points[i]; if(!pt || n!==n[0].repeat(6)) throw new Error('Неверный код точки (в демо: 111111 … 666666)'); out={city:pt.city, point:pt.point}; break; }
         case 'list': out = demoDB.filter(t=>t.from===p.point||t.to===p.point).sort((a,b)=>b.created.localeCompare(a.created)); break;
         case 'create': {
           if(p.from===p.to) throw new Error('Нельзя переместить на свою же точку');
@@ -293,7 +303,7 @@ async function boot(){
   }
   try{ S.cfg = await api('config'); }
   catch(e){ hideSplash(); $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="boot()">Повторить</button></div>`; return; }
-  if(S.me && !S.cfg.points.some(p=>p.point===S.me.point)) S.me = null;
+  if(S.me && (!S.me.code || !S.cfg.points.some(p=>p.point===S.me.point))) S.me = null;
   if(S.me && !CITIES.includes(S.me.city)) S.me = null;
   S.view = S.me ? 'list' : 'pick';
   if(S.me) await refresh(); else render();
@@ -331,7 +341,7 @@ function header(){
   const t = document.getElementById('title'), r = document.getElementById('hright');
   if(!S.me){ t.innerHTML='Перемещения'; r.innerHTML=''; return; }
   t.innerHTML = `${esc(short(S.me.point))}<small>${esc(S.me.city)} · перемещения</small>`;
-  r.innerHTML = S.view==='list' ? `<button class="hbtn" data-a="change">Сменить точку</button>` : '';
+  r.innerHTML = S.view==='list' ? `<button class="hbtn" data-a="change">Выйти</button>` : '';
 }
 
 function render(){
@@ -342,23 +352,26 @@ function render(){
 }
 
 function renderPick(){
-  const cities = CITIES.filter(c=>S.cfg.points.some(p=>p.city===c));
-  if(!S.pickCity){
-    $app.innerHTML = `<div class="pick">${S.me?'<button class="back" data-a="cancelnew">← Назад</button>':''}<h2>Ваш город</h2><p>Выбирается один раз на этом телефоне.</p>
-      ${cities.map(c=>`<button class="choice" data-a="city" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
-  } else {
-    $app.innerHTML = `<div class="pick"><button class="back" data-a="pickback">← Город</button><h2>Ваша точка</h2><p>${esc(S.pickCity)}</p>
-      <div class="field">${SEARCH_ICON}<input id="qme" class="search" placeholder="Найти свою точку…" autocomplete="off"></div>
-      <div id="melist" style="margin-top:10px"></div></div>`;
-    updMe();
-  }
+  $app.innerHTML = `<div class="pick login">${S.me?'<button class="back" data-a="cancelnew">← Назад</button>':''}
+    <img src="logo.png" alt="Яблонька">
+    <h2>Вход для управляющего</h2>
+    <p>Введите 6-значный код вашей точки — тот же, что в Leftover Control. Это нужно один раз.</p>
+    <input id="codeInput" class="code" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-label="Код точки">
+    <div class="err" id="loginErr"></div>
+    <div class="bottombar"><button class="fab" data-a="login" disabled>Войти</button></div></div>`;
+  setTimeout(()=>{ const i=document.getElementById('codeInput'); if(i) i.focus(); }, 50);
 }
-function updMe(){
-  const el = document.getElementById('melist'); if(!el) return;
-  const q = (document.getElementById('qme')||{}).value||'';
-  const all = S.cfg.points.filter(p=>p.city===S.pickCity);
-  const pts = q.trim() ? matchList(all, q, p=>short(p.point), 50) : all;
-  el.innerHTML = pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${q?hl(short(p.point),q):esc(short(p.point))}</button>`).join('') || '<div class="hint">Ничего не найдено.</div>';
+async function doLogin(){
+  const inp=document.getElementById('codeInput'), err=document.getElementById('loginErr'), btn=document.querySelector('[data-a=login]');
+  const code=(inp.value||'').replace(/\D/g,''); if(code.length!==6) return;
+  btn.disabled=true; btn.textContent='Проверяем…'; err.textContent='';
+  try{
+    const me = await api('login', {code});
+    S.me = {city:me.city, point:me.point, code}; store.set('point', S.me);
+    S.view='list'; S.tab='in'; S.list=[];
+    await refresh();
+    if(API_URL && pushStatus()==='ask' && Notification.permission==='granted') enablePush(true);
+  }catch(e){ err.textContent=e.message; btn.disabled=false; btn.textContent='Войти'; inp.select(); }
 }
 
 const PILL = {'Новая':['s-new','Ждёт принятия'],'Принята':['s-acc','Принята, в пути'],'Получена':['s-ok','Получена'],'Отклонена':['s-rej','Отклонена'],'Отменена':['s-can','Отменена']};
@@ -500,12 +513,9 @@ document.addEventListener('click', e=>{
   const a = b.dataset.a, v = b.dataset.v, id = b.dataset.id;
   if(a==='close' && e.target!==b && b.classList.contains('sheet')) return;
   switch(a){
-    case 'city': S.pickCity=v; render(); break;
-    case 'pickback': S.pickCity=null; render(); break;
-    case 'point': { const p=S.cfg.points.find(x=>x.point===v); S.me=p; store.set('point',p); S.view='list'; S.tab='in'; S.pickCity=null;
-      refresh().then(()=>{ if(API_URL && pushStatus()==='ask' && Notification.permission==='granted') enablePush(true); }); break; }
+    case 'login': doLogin(); break;
     case 'push': enablePush(false); break;
-    case 'change': S.view='pick'; S.pickCity=null; render(); break;
+    case 'change': S.view='pick'; render(); break;
     case 'tab': S.tab=v; render(); break;
     case 'new': S.draft={to:null,qp:'',items:[],comment:'',q:''}; S.view='new'; render(); window.scrollTo(0,0); setTimeout(()=>{const i=document.getElementById('qp'); if(i) i.focus();},50); break;
     case 'cancelnew': S.view='list'; render(); break;
@@ -540,14 +550,17 @@ document.addEventListener('input', e=>{
   const t = e.target;
   if(t.id==='q'){ S.draft.q=t.value; updSugQ(); }
   else if(t.id==='qp'){ S.draft.qp=t.value; updSugP(); }
-  else if(t.id==='qme'){ updMe(); }
+  else if(t.id==='codeInput'){ const v=t.value.replace(/\D/g,'').slice(0,6); if(t.value!==v) t.value=v;
+    const b=document.querySelector('[data-a=login]'); if(b) b.disabled = v.length!==6; document.getElementById('loginErr').textContent='';
+    if(v.length===6) doLogin(); }
   else if(t.id==='comment'){ S.draft.comment=t.value; }
   else if(t.dataset.qty!==undefined){ const it=S.draft.items.find(i=>i.product===t.dataset.qty); if(it){ it.qty=t.value; updSend(); } }
 });
 // Enter в поиске выбирает первую подсказку
 document.addEventListener('keydown', e=>{
   if(e.key!=='Enter') return;
-  const box = e.target.id==='q' ? 'sugQ' : e.target.id==='qp' ? 'sugP' : e.target.id==='qme' ? 'melist' : null;
+  if(e.target.id==='codeInput'){ e.preventDefault(); doLogin(); return; }
+  const box = e.target.id==='q' ? 'sugQ' : e.target.id==='qp' ? 'sugP' : null;
   if(!box) return; e.preventDefault();
   const first = document.querySelector('#'+box+' [data-a]'); if(first) first.click();
 });
