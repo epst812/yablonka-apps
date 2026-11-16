@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14231b">
 <title>Перемещения</title>
 <link rel="manifest" href="manifest.json">
-<script src="config.js?v=8"></script>
+<script src="config.js?v=9"></script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -108,6 +108,12 @@ input.code:focus{outline:none;border-color:var(--green)}
 #ptr.spin svg{animation:ptrspin .8s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
 html,body{overscroll-behavior-y:contain}
+#sync{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green-ink);margin-left:8px;vertical-align:middle;opacity:0;transition:opacity .2s}
+body.syncing #sync{opacity:1;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.s-pend{background:var(--grey-soft);color:var(--muted)}
+.saving{display:inline-block;width:12px;height:12px;border:2px solid var(--muted);border-top-color:transparent;border-radius:50%;margin-right:7px;vertical-align:-1px;animation:ptrspin .8s linear infinite}
+.card.pending{opacity:.75}
 #installCard{max-width:560px;margin:12px auto 0;padding:0 16px}
 #installCard[hidden]{display:none}
 .install{display:flex;align-items:center;gap:12px;background:var(--green-soft);border:1.5px solid var(--green);border-radius:14px;padding:12px 12px 12px 14px}
@@ -160,7 +166,7 @@ const CONF = window.APP_CONFIG || {};
 const API_URL = CONF.API_URL || '';
 const PUSH_CONFIGURED = !!(CONF.FIREBASE && CONF.FIREBASE.apiKey && CONF.VAPID_KEY);
 const FB_VER = '10.12.2';
-const POLL_MS = 15000;
+const POLL_MS = 30000; // новые заявки приходят пушем, опрос — только подстраховка
 
 /* ===== Хранилище на устройстве (точка) ===== */
 const store = {
@@ -172,6 +178,12 @@ const store = {
 async function api(action, data = {}){
   if(S && S.me && S.me.code && data.code===undefined) data = {...data, code:S.me.code};
   if(!API_URL) return mock(action, data);
+  syncN++; document.body.classList.add('syncing');
+  try{ return await apiFetch(action, data); }
+  finally{ if(--syncN<=0){ syncN=0; document.body.classList.remove('syncing'); } }
+}
+let syncN = 0;
+async function apiFetch(action, data){
   const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action, ...data})});
   const j = await r.json();
   if(!j.ok) throw new Error(j.error || 'Ошибка');
@@ -201,6 +213,10 @@ function mock(action, p){
       let out;
       switch(action){
         case 'config': out = DEMO_CFG; break;
+        case 'boot': { const n=String(p.code||'').replace(/\D/g,''); const i='123456'.indexOf(n[0]); const pt=DEMO_CFG.points[i];
+          if(!pt || n!==n[0].repeat(6)) throw new Error('Неверный код точки (в демо: 111111 … 666666)');
+          out={ me:{city:pt.city, point:pt.point}, cfgVer:'demo', list: demoDB.filter(t=>t.from===pt.point||t.to===pt.point).sort((a,b)=>b.created.localeCompare(a.created)) };
+          if(p.cfgVer!=='demo') out.config=DEMO_CFG; break; }
         case 'login': { const n=String(p.code||'').replace(/\D/g,''); const i='123456'.indexOf(n[0]); // демо: 111111 → Точка 1 … 666666 → Точка 6
           const pt=DEMO_CFG.points[i]; if(!pt || n!==n[0].repeat(6)) throw new Error('Неверный код точки (в демо: 111111 … 666666)'); out={city:pt.city, point:pt.point}; break; }
         case 'history': out = demoDB.filter(t=>(t.from===p.point||t.to===p.point) && !['Новая','Принята'].includes(t.status)).sort((a,b)=>b.created.localeCompare(a.created)); break;
@@ -303,20 +319,25 @@ async function enablePush(silent){
 const SPLASH_T0 = Date.now();
 try{ const o=new URLSearchParams(location.search).get('open'); if(o) S.openId=o; }catch(e){}
 function hideSplash(){ const sp=document.getElementById('splash'); if(!sp) return;
-  setTimeout(()=>{ sp.classList.add('hide'); setTimeout(()=>sp.remove(),400); }, Math.max(0, 900-(Date.now()-SPLASH_T0))); }
+  setTimeout(()=>{ sp.classList.add('hide'); setTimeout(()=>sp.remove(),400); }, Math.max(0, (S.me&&S.cfg?350:900)-(Date.now()-SPLASH_T0))); }
 async function boot(){
   document.getElementById('demo').hidden = !!API_URL;
   if('serviceWorker' in navigator && location.protocol==='https:'){
     try{ swReg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready; }catch(e){}
     navigator.serviceWorker.addEventListener('message', ev=>{ if(ev.data&&ev.data.type==='refresh' && S.me){ if(ev.data.id) S.openId=ev.data.id; refresh(true); } });
   }
-  try{ S.cfg = await api('config'); }
-  catch(e){ hideSplash(); $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="boot()">Повторить</button></div>`; return; }
-  if(S.me && (!S.me.code || !S.cfg.points.some(p=>p.point===S.me.point))) S.me = null;
-  if(S.me && !CITIES.includes(S.me.city)) S.me = null;
-  S.view = S.me ? 'list' : 'pick';
-  if(S.me) await refresh(); else render();
-  hideSplash();
+  if(S.me && (!S.me.code || !CITIES.includes(S.me.city))) S.me = null;
+  const cached = store.get('cfg');
+  if(cached && cached.points) S.cfg = cached;
+  if(!S.me){ S.view='pick'; render(); hideSplash(); }
+  else if(S.cfg){
+    // мгновенный старт: показываем то, что было в прошлый раз, и обновляем в фоне
+    S.list = store.get('list_'+S.me.point) || []; S.view='list'; render(); hideSplash();
+    syncBoot(true);
+  } else {
+    if(!(await syncBoot(false))){ hideSplash(); return; }
+    hideSplash();
+  }
   if(S.me && API_URL && PUSH_CONFIGURED && 'Notification' in window && Notification.permission==='granted') enablePush(true); // обновить токен
   setInterval(()=>{ if(S.me && document.visibilityState==='visible' && S.view==='list') refresh(true); }, POLL_MS);
   // iPhone не всегда присылает visibilitychange при возврате в приложение — слушаем всё
@@ -324,6 +345,35 @@ async function boot(){
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('pageshow', wake);
+}
+
+/* Один запрос: точка + заявки + каталог (только если поменялся). */
+async function syncBoot(silent, code){
+  try{
+    const r = await api('boot', {code: code || (S.me&&S.me.code), cfgVer: S.cfg && S.cfg.ver});
+    if(r.config){ S.cfg = {...r.config, ver:r.cfgVer}; store.set('cfg', S.cfg); }
+    S.me = {city:r.me.city, point:r.me.point, code: code || S.me.code}; store.set('point', S.me);
+    applyList(r.list, silent);
+    if(S.view==='list'||S.view==='pick'){ S.view='list'; render(); }
+    return true;
+  }catch(e){
+    if(/код точки|недоступны/i.test(e.message) && !code){ S.me=null; store.set('point',null); S.view='pick'; render(); toast(e.message); return false; }
+    if(code) throw e;
+    if(!S.cfg){ $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="location.reload()">Повторить</button></div>`; }
+    else if(!silent) toast(e.message);
+    return false;
+  }
+}
+function applyList(list, silent){
+  // заявки, которые ещё сохраняются, не теряем
+  const pend = S.list.filter(t=>t.pending && !list.some(x=>x.id===t.id));
+  S.list = pend.concat(list);
+  store.set('list_'+S.me.point, list);
+  if(S.openId){ const t=S.list.find(x=>x.id===S.openId); if(t){ S.tab = t.to===S.me.point ? 'in' : 'out'; if(S.view!=='list'&&S.view!=='new') S.view='list'; } S.openId=null; }
+  const incomingNew = S.list.filter(t=>t.to===S.me.point && t.status==='Новая');
+  const fresh = incomingNew.filter(t=>!S.seen.has(t.id));
+  if(silent && fresh.length){ toast('Новая заявка от '+short(fresh[0].from)); if(navigator.vibrate) navigator.vibrate([120,60,120]); }
+  incomingNew.forEach(t=>S.seen.add(t.id)); store.set('seen',[...S.seen].slice(-300));
 }
 
 let refreshing=null, refreshAgain=false;
@@ -334,14 +384,9 @@ async function refresh(silent){
   if(refreshAgain){ refreshAgain=false; return refresh(true); }
 }
 async function doRefresh(silent){
-  try{
-    S.list = await api('list', {point:S.me.point});
-    if(S.openId){ const t=S.list.find(x=>x.id===S.openId); if(t){ S.tab = t.to===S.me.point ? 'in' : 'out'; if(S.view!=='list'&&S.view!=='new') S.view='list'; } S.openId=null; }
-    const incomingNew = S.list.filter(t=>t.to===S.me.point && t.status==='Новая');
-    const fresh = incomingNew.filter(t=>!S.seen.has(t.id));
-    if(silent && fresh.length){ toast('Новая заявка от '+fresh[0].from); if(navigator.vibrate) navigator.vibrate([120,60,120]); }
-    incomingNew.forEach(t=>S.seen.add(t.id)); store.set('seen',[...S.seen].slice(-300));
-  }catch(e){ if(!silent) toast(e.message); }
+  if(!S.me) return;
+  try{ applyList(await api('list', {point:S.me.point}), silent); }
+  catch(e){ if(!silent) toast(e.message); }
   if(S.view==='list') render();
 }
 
@@ -349,7 +394,7 @@ async function doRefresh(silent){
 function header(){
   const t = document.getElementById('title'), r = document.getElementById('hright');
   if(!S.me){ t.innerHTML='Перемещения'; r.innerHTML=''; return; }
-  t.innerHTML = `${esc(short(S.me.point))}<small>${esc(S.me.city)} · перемещения</small>`;
+  t.innerHTML = `${esc(short(S.me.point))}<span id="sync" aria-hidden="true"></span><small>${esc(S.me.city)} · перемещения</small>`;
   r.innerHTML = S.view==='list' ? `<button class="hbtn hicon" data-a="history" aria-label="История заявок" title="История заявок"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v4h4"></path><path d="M12 7v5l3 2"></path></svg></button><button class="hbtn" data-a="change">Выйти</button>` : '';
 }
 
@@ -376,10 +421,9 @@ async function doLogin(){
   const code=(inp.value||'').replace(/\D/g,''); if(code.length!==6) return;
   btn.disabled=true; btn.textContent='Проверяем…'; err.textContent='';
   try{
-    const me = await api('login', {code});
-    S.me = {city:me.city, point:me.point, code}; store.set('point', S.me);
-    S.view='list'; S.tab='in'; S.list=[];
-    await refresh();
+    S.list=[]; S.tab='in';
+    await syncBoot(false, code);
+    S.view='list'; render();
     if(API_URL && pushStatus()==='ask' && Notification.permission==='granted') enablePush(true);
   }catch(e){ err.textContent=e.message; btn.disabled=false; btn.textContent='Войти'; inp.select(); }
 }
@@ -395,14 +439,16 @@ function card(t){
     return `<li><span>${esc(i.product)}</span><span><b>${esc(i.qty)}</b> ${esc(i.unit)}${d}</span></li>`;
   }).join('');
   let acts='', hint='';
-  if(incoming && t.status==='Новая') acts = `<button class="btn danger" data-a="reject" data-id="${esc(t.id)}">Отклонить</button><button class="btn pri" data-a="accept" data-id="${esc(t.id)}">Принять</button>`;
+  if(t.pending){ hint='<span class="saving"></span>Сохраняем в таблицу…'; }
+  else if(incoming && t.status==='Новая') acts = `<button class="btn danger" data-a="reject" data-id="${esc(t.id)}">Отклонить</button><button class="btn pri" data-a="accept" data-id="${esc(t.id)}">Принять</button>`;
   else if(incoming && t.status==='Принята'){ hint='Нажмите, когда товар будет у вас.'; acts = `<button class="btn blue" data-a="receive" data-id="${esc(t.id)}">Получили</button>`; }
   else if(!incoming && t.status==='Новая'){ hint=`Ждём, пока ${esc(t.to)} примет заявку.`; acts = `<button class="btn ghost" data-a="cancel" data-id="${esc(t.id)}">Отменить заявку</button>`; }
   else if(!incoming && t.status==='Принята') hint = `${esc(t.to)} приняла заявку — передайте товар.`;
-  return `<div class="card ${need?'need':''}">
+  const pill = t.pending && /^tmp-/.test(t.id) ? `<span class="pill s-pend">Отправляется…</span>` : `<span class="pill ${cls}">${label}</span>`;
+  return `<div class="card ${need&&!t.pending?'need':''} ${t.pending?'pending':''}">
     <div class="top"><div><div class="route">${incoming?`От: ${esc(short(t.from))}`:`Куда: ${esc(short(t.to))}`}</div>
-      <div class="meta">${esc(t.id)} · ${fmtT(t.created)}${t.received?` · получена ${fmtT(t.received)}`:''}</div></div>
-      <span class="pill ${cls}">${label}</span></div>
+      <div class="meta">${t.pending&&/^tmp-/.test(t.id)?'новая':esc(t.id)} · ${fmtT(t.created)}${t.received?` · получена ${fmtT(t.received)}`:''}</div></div>
+      ${pill}</div>
     <ul class="items">${items}</ul>
     ${t.comment?`<div class="note">💬 ${esc(t.comment)}</div>`:''}
     ${t.reason?`<div class="note">Причина отказа: ${esc(t.reason)}</div>`:''}
@@ -546,6 +592,14 @@ async function act(fn, okMsg){
   finally{ document.body.classList.remove('loading'); }
 }
 const byId = id => S.list.find(t=>t.id===id);
+/* Мгновенное действие: меняем на экране сразу, сервер — в фоне; при ошибке откатываем. */
+function optimistic(id, change, call, okMsg){
+  const t = byId(id); if(!t || t.pending) return;
+  const before = JSON.parse(JSON.stringify(t));
+  change(t); t.pending = true; closeSheet(); if(S.view==='list') render(); if(okMsg) toast(okMsg);
+  call().then(()=>{ t.pending=false; refresh(true); })
+    .catch(e=>{ Object.keys(t).forEach(k=>delete t[k]); Object.assign(t, before); if(S.view==='list') render(); toast('Не сохранилось: '+e.message); refresh(true); });
+}
 
 document.addEventListener('click', e=>{
   const b = e.target.closest('[data-a]'); if(!b) return;
@@ -573,16 +627,24 @@ document.addEventListener('click', e=>{
     case 'send': {
       const items = S.draft.items.filter(i=>num(i.qty)>0).map(i=>({product:i.product, qty:num(i.qty)}));
       if(!S.draft.to||!items.length) return;
-      act(async()=>{ await api('create',{from:S.me.point,to:S.draft.to,items,comment:S.draft.comment.trim()}); S.view='list'; S.tab='out'; }, 'Заявка отправлена: '+short(S.draft.to));
+      const d = S.draft, units = Object.fromEntries(d.items.map(i=>[i.product,i.unit]));
+      const tmp = {id:'tmp-'+Date.now(), created:new Date().toISOString(), city:S.me.city, from:S.me.point, to:d.to, status:'Новая', accepted:'', received:'',
+        comment:d.comment.trim(), reason:'', items:items.map(i=>({...i, unit:units[i.product]||'шт', got:null})), pending:true};
+      S.list.unshift(tmp); S.view='list'; S.tab='out'; render(); window.scrollTo(0,0); toast('Заявка отправляется: '+short(d.to));
+      api('create',{from:S.me.point,to:d.to,items,comment:tmp.comment})
+        .then(r=>{ tmp.id=r.id; tmp.pending=false; if(S.view==='list') render(); refresh(true); })
+        .catch(e=>{ S.list=S.list.filter(x=>x!==tmp); S.draft=d; S.view='new'; render(); updTo(); toast('Не отправилось: '+e.message); });
       break; }
-    case 'accept': act(()=>api('accept',{id,point:S.me.point}), 'Заявка принята'); break;
+    case 'accept': optimistic(id, t=>{ t.status='Принята'; t.accepted=new Date().toISOString(); }, ()=>api('accept',{id,point:S.me.point}), 'Заявка принята'); break;
     case 'reject': openReject(byId(id)); break;
-    case 'doreject': act(()=>api('reject',{id,point:S.me.point,reason:(document.getElementById('reason').value||'').trim()}), 'Заявка отклонена'); break;
-    case 'cancel': act(()=>api('cancel',{id,point:S.me.point}), 'Заявка отменена'); break;
+    case 'doreject': { const reason=(document.getElementById('reason').value||'').trim();
+      optimistic(id, t=>{ t.status='Отклонена'; t.reason=reason; }, ()=>api('reject',{id,point:S.me.point,reason}), 'Заявка отклонена'); break; }
+    case 'cancel': optimistic(id, t=>{ t.status='Отменена'; }, ()=>api('cancel',{id,point:S.me.point}), 'Заявка отменена'); break;
     case 'receive': openReceive(byId(id)); break;
     case 'doreceive': {
       const items=[...document.querySelectorAll('[data-got]')].map(el=>({product:el.dataset.got, qty:Math.max(0, parseFloat(String(el.value).replace(',','.'))||0)}));
-      act(()=>api('receive',{id,point:S.me.point,items}), 'Получение записано'); break; }
+      optimistic(id, t=>{ t.status='Получена'; t.received=new Date().toISOString(); const g=Object.fromEntries(items.map(i=>[i.product,i.qty])); t.items.forEach(i=>i.got = g[i.product] ?? i.qty); },
+        ()=>api('receive',{id,point:S.me.point,items}), 'Получение записано'); break; }
     case 'close': closeSheet(); break;
   }
 });
