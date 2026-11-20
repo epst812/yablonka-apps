@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14231b">
 <title>Перемещения</title>
 <link rel="manifest" href="manifest.json">
-<script src="config.js?v=9"></script>
+<script src="config.js?v=10"></script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -27,8 +27,7 @@ header .row{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10
 header h1{font-size:18px;margin:0;flex:1;font-weight:650}
 header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
 .hbtn{background:var(--grey-soft);color:var(--ink);border-radius:10px;padding:7px 11px;font-size:14px}
-.hicon{width:36px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:middle}
-.hicon svg{width:19px;height:19px}
+.hbtn + .hbtn{margin-left:6px}
 .more{display:block;width:100%;text-align:center;padding:12px;border-radius:12px;background:var(--grey-soft);color:var(--green-ink);font-weight:600;font-size:15px;margin-top:2px}
 .filters{display:flex;gap:6px;margin:6px 0 4px}
 .filters button{padding:8px 14px;border-radius:20px;background:var(--grey-soft);color:var(--muted);font-weight:600;font-size:14px}
@@ -91,8 +90,6 @@ header small{display:block;font-weight:400;color:var(--muted);font-size:13px}
 .item .n{flex:1;min-width:0;font-weight:600;font-size:15px}
 .item .n small{display:block;color:var(--muted);font-weight:400;font-size:13px}
 .empty-items{color:var(--muted);font-size:14px;padding:14px 2px 0}
-input.code{width:100%;font-size:30px;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);margin:6px 0 14px}
-input.code:focus{outline:none;border-color:var(--green)}
 .login{padding-top:30px}
 .login img{display:block;width:150px;margin:0 auto 22px}
 .login h2{font-size:22px;margin:0 0 6px;text-align:center}
@@ -151,7 +148,7 @@ textarea{width:100%;min-height:70px;padding:12px;border-radius:12px;border:1px s
 <body>
 <div id="splash"><img src="logo.png" alt="Яблонька"><small>Перемещения товара</small></div>
 <header><div class="row"><h1 id="title">Перемещения</h1><span id="hright"></span></div></header>
-<div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. Коды: 111111 — Точка 1 … 666666 — Точка 6. «Выйти» — чтобы сыграть за другую точку.</div>
+<div id="demo" class="demo" hidden>Демо-режим: данные хранятся только на этом устройстве. «Сменить точку» — чтобы сыграть за другую сторону.</div>
 <div id="installCard" hidden>
   <div class="install"><img src="icon-192.png" alt=""><div class="txt"><b>Установите приложение</b><span>Иконка «Яблонька» появится на главном экране</span></div><button id="installBtn">Установить</button></div>
   <ol id="installSteps" class="install-steps" hidden></ol>
@@ -176,7 +173,7 @@ const store = {
 
 /* ===== API ===== */
 async function api(action, data = {}){
-  if(S && S.me && S.me.code && data.code===undefined) data = {...data, code:S.me.code};
+  if(S && S.me && S.me.point && data.point===undefined) data = {...data, point:S.me.point};
   if(!API_URL) return mock(action, data);
   syncN++; document.body.classList.add('syncing');
   try{ return await apiFetch(action, data); }
@@ -192,8 +189,8 @@ async function apiFetch(action, data){
 
 /* ===== Демо-сервер (та же логика, что в Code.gs) ===== */
 const DEMO_CFG = {
-  points:[{city:'Пенза',point:'Точка 1'},{city:'Пенза',point:'Точка 2'},{city:'Пенза',point:'Точка 3'},
-          {city:'Балаково',point:'Точка 4'},{city:'Балаково',point:'Точка 5'},{city:'Балаково',point:'Точка 6'}],
+  points:[{city:'Пенза',point:'Точка 1',filial:'Пенза'},{city:'Пенза',point:'Точка 2',filial:'Пенза'},{city:'Засечное',point:'Засечное — Точка 3',filial:'Пенза'},
+          {city:'Балаково',point:'Точка 4',filial:'Балаково'},{city:'Балаково',point:'Точка 5',filial:'Балаково'},{city:'Вольск',point:'Вольск — Точка 6',filial:'Балаково'}],
   products:[{name:'Круассан шоколадный',unit:'шт',group:'Слоёная выпечка сладкая'},{name:'Круассан с вишней и марципаном',unit:'шт',group:'Слоёная выпечка сладкая'},
             {name:'Улитка с изюмом',unit:'шт',group:'Слоёная выпечка сладкая'},{name:'Пирожок с вишней',unit:'шт',group:'Пирожки сладкие'},
             {name:'Пирожок с мясом',unit:'шт',group:'Пирожки сытные'},{name:'Пирог с капустой и яйцом',unit:'кг',group:'Пироги сытные'},
@@ -213,17 +210,15 @@ function mock(action, p){
       let out;
       switch(action){
         case 'config': out = DEMO_CFG; break;
-        case 'boot': { const n=String(p.code||'').replace(/\D/g,''); const i='123456'.indexOf(n[0]); const pt=DEMO_CFG.points[i];
-          if(!pt || n!==n[0].repeat(6)) throw new Error('Неверный код точки (в демо: 111111 … 666666)');
-          out={ me:{city:pt.city, point:pt.point}, cfgVer:'demo', list: demoDB.filter(t=>t.from===pt.point||t.to===pt.point).sort((a,b)=>b.created.localeCompare(a.created)) };
+        case 'boot': { const pt=DEMO_CFG.points.find(x=>x.point===p.point); if(!pt) throw new Error('Точка не найдена — выберите её заново');
+          out={ me:pt, cfgVer:'demo', list: demoDB.filter(t=>t.from===pt.point||t.to===pt.point).sort((a,b)=>b.created.localeCompare(a.created)) };
           if(p.cfgVer!=='demo') out.config=DEMO_CFG; break; }
-        case 'login': { const n=String(p.code||'').replace(/\D/g,''); const i='123456'.indexOf(n[0]); // демо: 111111 → Точка 1 … 666666 → Точка 6
-          const pt=DEMO_CFG.points[i]; if(!pt || n!==n[0].repeat(6)) throw new Error('Неверный код точки (в демо: 111111 … 666666)'); out={city:pt.city, point:pt.point}; break; }
         case 'history': out = demoDB.filter(t=>(t.from===p.point||t.to===p.point) && !['Новая','Принята'].includes(t.status)).sort((a,b)=>b.created.localeCompare(a.created)); break;
         case 'list': out = demoDB.filter(t=>t.from===p.point||t.to===p.point).sort((a,b)=>b.created.localeCompare(a.created)); break;
         case 'create': {
           if(p.from===p.to) throw new Error('Нельзя переместить на свою же точку');
-          if(cityOf(p.from)!==cityOf(p.to)) throw new Error('Перемещение возможно только внутри города');
+          const fil = pt=>(DEMO_CFG.points.find(x=>x.point===pt)||{}).filial;
+          if(fil(p.from)!==fil(p.to)) throw new Error('Перемещение возможно только между точками своего филиала');
           const units = Object.fromEntries(DEMO_CFG.products.map(x=>[x.name,x.unit]));
           const id = 'П-'+Date.now().toString().slice(-6);
           demoDB.push({id, created:new Date().toISOString(), city:cityOf(p.from), from:p.from, to:p.to, status:'Новая',
@@ -256,9 +251,9 @@ const fmtT = iso => { if(!iso) return ''; const d=new Date(iso), n=new Date();
   const t = d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   return d.toDateString()===n.toDateString() ? 'сегодня, '+t : d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+', '+t; };
 const num = v => { const x = parseFloat(String(v).replace(',','.')); return isFinite(x)&&x>0 ? Math.round(x*1000)/1000 : 0; };
-const myCity = () => S.me && S.me.city;
-const CITIES = CONF.CITIES || ['Пенза','Балаково'];           // где перемещения доступны
-const activePoints = () => S.cfg.points.filter(p=>CITIES.includes(p.city));
+const myFilial = () => S.me && (S.me.filial || S.me.city);
+const FILIALS = CONF.FILIALS || ['Пенза','Балаково'];         // филиалы, где перемещения доступны
+const filialOf = p => p.filial || p.city;
 const norm = x => String(x||'').toLowerCase().replace(/ё/g,'е');
 function matchList(list, q, key, limit){
   const words = norm(q).trim().split(/\s+/).filter(Boolean); if(!words.length) return [];
@@ -273,7 +268,8 @@ function hl(text, q){ // подсветка совпадений
   return out;
 }
 const SEARCH_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>';
-const short = p => String(p||'').replace(/^[^—]+—\s*/,'');  // «Пенза — Антонова, 18В» → «Антонова, 18В»
+// «Пенза — Антонова, 18В» → «Антонова, 18В», но только для своего города: «Вольск — Основная точка» остаётся полным
+const short = p => { const m=String(p||'').match(/^([^—]+?)\s*—\s*(.+)$/); return m && S.me && m[1]===S.me.city ? m[2] : String(p||''); };  // «Пенза — Антонова, 18В» → «Антонова, 18В»
 
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2600); }
 
@@ -326,10 +322,14 @@ async function boot(){
     try{ swReg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready; }catch(e){}
     navigator.serviceWorker.addEventListener('message', ev=>{ if(ev.data&&ev.data.type==='refresh' && S.me){ if(ev.data.id) S.openId=ev.data.id; refresh(true); } });
   }
-  if(S.me && (!S.me.code || !CITIES.includes(S.me.city))) S.me = null;
+  if(S.me && (!S.me.filial || !FILIALS.includes(S.me.filial))) S.me = null; // старый вход по коду — выбрать точку заново
   const cached = store.get('cfg');
-  if(cached && cached.points) S.cfg = cached;
-  if(!S.me){ S.view='pick'; render(); hideSplash(); }
+  if(cached && cached.points && cached.points[0] && cached.points[0].filial) S.cfg = cached;
+  if(!S.me){
+    S.view='pick'; render(); hideSplash();
+    if(!S.cfg){ try{ const c = await api('config'); S.cfg = c; store.set('cfg', c); render(); }
+      catch(e){ $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="location.reload()">Повторить</button></div>`; } }
+  }
   else if(S.cfg){
     // мгновенный старт: показываем то, что было в прошлый раз, и обновляем в фоне
     S.list = store.get('list_'+S.me.point) || []; S.view='list'; render(); hideSplash();
@@ -348,17 +348,17 @@ async function boot(){
 }
 
 /* Один запрос: точка + заявки + каталог (только если поменялся). */
-async function syncBoot(silent, code){
+async function syncBoot(silent, point){
   try{
-    const r = await api('boot', {code: code || (S.me&&S.me.code), cfgVer: S.cfg && S.cfg.ver});
+    const r = await api('boot', {point: point || (S.me&&S.me.point), cfgVer: S.cfg && S.cfg.ver});
     if(r.config){ S.cfg = {...r.config, ver:r.cfgVer}; store.set('cfg', S.cfg); }
-    S.me = {city:r.me.city, point:r.me.point, code: code || S.me.code}; store.set('point', S.me);
+    S.me = {city:r.me.city, point:r.me.point, filial:r.me.filial}; store.set('point', S.me);
     applyList(r.list, silent);
     if(S.view==='list'||S.view==='pick'){ S.view='list'; render(); }
     return true;
   }catch(e){
-    if(/код точки|недоступны/i.test(e.message) && !code){ S.me=null; store.set('point',null); S.view='pick'; render(); toast(e.message); return false; }
-    if(code) throw e;
+    if(/не найдена|недоступны/i.test(e.message) && !point){ S.me=null; store.set('point',null); S.view='pick'; render(); toast(e.message); return false; }
+    if(point) throw e;
     if(!S.cfg){ $app.innerHTML = `<div class="empty">Нет связи с сервером.<br>${esc(e.message)}<br><br><button class="btn ghost" onclick="location.reload()">Повторить</button></div>`; }
     else if(!silent) toast(e.message);
     return false;
@@ -394,8 +394,8 @@ async function doRefresh(silent){
 function header(){
   const t = document.getElementById('title'), r = document.getElementById('hright');
   if(!S.me){ t.innerHTML='Перемещения'; r.innerHTML=''; return; }
-  t.innerHTML = `${esc(short(S.me.point))}<span id="sync" aria-hidden="true"></span><small>${esc(S.me.city)} · перемещения</small>`;
-  r.innerHTML = S.view==='list' ? `<button class="hbtn hicon" data-a="history" aria-label="История заявок" title="История заявок"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v4h4"></path><path d="M12 7v5l3 2"></path></svg></button><button class="hbtn" data-a="change">Выйти</button>` : '';
+  t.innerHTML = `${esc(short(S.me.point))}<span id="sync" aria-hidden="true"></span><small>Филиал ${esc(myFilial())}</small>`;
+  r.innerHTML = S.view==='list' ? `<button class="hbtn" data-a="history">История</button><button class="hbtn" data-a="change">Сменить точку</button>` : '';
 }
 
 function render(){
@@ -407,25 +407,33 @@ function render(){
 }
 
 function renderPick(){
-  $app.innerHTML = `<div class="pick login">${S.me?'<button class="back" data-a="cancelnew">← Назад</button>':''}
-    <img src="logo.png" alt="Яблонька">
-    <h2>Вход для управляющего</h2>
-    <p>Введите 6-значный код вашей точки — тот же, что в Leftover Control. Это нужно один раз.</p>
-    <input id="codeInput" class="code" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-label="Код точки">
-    <div class="err" id="loginErr"></div>
-    <div class="bottombar"><button class="fab" data-a="login" disabled>Войти</button></div></div>`;
-  setTimeout(()=>{ const i=document.getElementById('codeInput'); if(i) i.focus(); }, 50);
+  const back = S.me ? '<button class="back" data-a="cancelnew">← Назад</button>' : '';
+  if(!S.cfg){ $app.innerHTML = `<div class="pick login">${back}<img src="logo.png" alt="Яблонька"><div class="empty">Загружаем точки…</div></div>`; return; }
+  if(!S.pickFilial){
+    const fils = FILIALS.filter(f=>S.cfg.points.some(p=>filialOf(p)===f));
+    $app.innerHTML = `<div class="pick login">${back}<img src="logo.png" alt="Яблонька">
+      <h2>Ваш филиал</h2><p>Выбирается один раз — приложение запомнит.</p>
+      ${fils.map(f=>`<button class="choice" data-a="filial" data-v="${esc(f)}">${esc(f)}</button>`).join('')}</div>`;
+  } else {
+    $app.innerHTML = `<div class="pick"><button class="back" data-a="pickback">← Филиал</button><h2>Ваша точка</h2><p>Филиал ${esc(S.pickFilial)}</p>
+      <div class="field">${SEARCH_ICON}<input id="qme" class="search" placeholder="Найти свою точку…" autocomplete="off"></div>
+      <div id="melist" style="margin-top:10px"></div></div>`;
+    updMe();
+  }
 }
-async function doLogin(){
-  const inp=document.getElementById('codeInput'), err=document.getElementById('loginErr'), btn=document.querySelector('[data-a=login]');
-  const code=(inp.value||'').replace(/\D/g,''); if(code.length!==6) return;
-  btn.disabled=true; btn.textContent='Проверяем…'; err.textContent='';
-  try{
-    S.list=[]; S.tab='in';
-    await syncBoot(false, code);
-    S.view='list'; render();
-    if(API_URL && pushStatus()==='ask' && Notification.permission==='granted') enablePush(true);
-  }catch(e){ err.textContent=e.message; btn.disabled=false; btn.textContent='Войти'; inp.select(); }
+function updMe(){
+  const el = document.getElementById('melist'); if(!el) return;
+  const q = (document.getElementById('qme')||{}).value||'';
+  const all = S.cfg.points.filter(p=>filialOf(p)===S.pickFilial);
+  const pts = q.trim() ? matchList(all, q, p=>p.point, 50) : all;
+  el.innerHTML = pts.map(p=>`<button class="choice" data-a="point" data-v="${esc(p.point)}">${q?hl(p.point,q):esc(p.point)}</button>`).join('') || '<div class="hint">Ничего не найдено.</div>';
+}
+async function choosePoint(point){
+  const p = S.cfg.points.find(x=>x.point===point); if(!p) return;
+  S.me = {city:p.city, point:p.point, filial:filialOf(p)}; store.set('point', S.me);
+  S.pickFilial=null; S.list = store.get('list_'+p.point) || []; S.tab='in'; S.view='list'; render();
+  await syncBoot(false);
+  if(API_URL && pushStatus()==='ask' && Notification.permission==='granted') enablePush(true);
 }
 
 const PILL = {'Новая':['s-new','Ждёт принятия'],'Принята':['s-acc','Принята, в пути'],'Получена':['s-ok','Получена'],'Отклонена':['s-rej','Отклонена'],'Отменена':['s-can','Отменена']};
@@ -527,7 +535,7 @@ function updTo(){
   const box = document.getElementById('toBox'); if(!box) return;
   const d = S.draft;
   if(d.to){
-    box.innerHTML = `<div class="picked"><div class="t"><b>${esc(short(d.to))}</b><small>${esc(myCity())}</small></div>
+    box.innerHTML = `<div class="picked"><div class="t"><b>${esc(short(d.to))}</b><small>Филиал ${esc(myFilial())}</small></div>
       <button class="x" data-a="clearto" aria-label="Выбрать другую точку">✕</button></div>`;
   } else {
     box.innerHTML = `<div class="field">${SEARCH_ICON}<input id="qp" class="search" placeholder="Найти филиал по адресу…" autocomplete="off" value="${esc(d.qp||'')}"></div><div id="sugP"></div>`;
@@ -538,8 +546,8 @@ function updSugP(){
   const el = document.getElementById('sugP'); if(!el) return;
   const q = S.draft.qp||'';
   if(!q.trim()){ el.innerHTML=''; return; }
-  const list = matchList(activePoints().filter(p=>p.city===myCity() && p.point!==S.me.point), q, p=>short(p.point), 8);
-  el.innerHTML = `<div class="sug">${list.map(p=>`<button data-a="to" data-v="${esc(p.point)}"><span>${hl(short(p.point),q)}</span></button>`).join('') || '<div class="none">Такой точки нет в городе '+esc(myCity())+'</div>'}</div>`;
+  const list = matchList(S.cfg.points.filter(p=>filialOf(p)===myFilial() && p.point!==S.me.point), q, p=>p.point, 8);
+  el.innerHTML = `<div class="sug">${list.map(p=>`<button data-a="to" data-v="${esc(p.point)}"><span>${hl(p.point,q)}</span></button>`).join('') || '<div class="none">Такой точки нет в филиале '+esc(myFilial())+'</div>'}</div>`;
 }
 function updSugQ(){
   const el = document.getElementById('sugQ'); if(!el) return;
@@ -606,11 +614,13 @@ document.addEventListener('click', e=>{
   const a = b.dataset.a, v = b.dataset.v, id = b.dataset.id;
   if(a==='close' && e.target!==b && b.classList.contains('sheet')) return;
   switch(a){
-    case 'login': doLogin(); break;
+    case 'filial': S.pickFilial=v; render(); setTimeout(()=>{const i=document.getElementById('qme'); if(i) i.focus();},50); break;
+    case 'pickback': S.pickFilial=null; render(); break;
+    case 'point': choosePoint(v); break;
     case 'history': openHistory(); break;
     case 'hfilter': S.hist.filter=v; render(); break;
     case 'push': enablePush(false); break;
-    case 'change': S.view='pick'; render(); break;
+    case 'change': S.view='pick'; S.pickFilial=null; render(); break;
     case 'tab': S.tab=v; render(); break;
     case 'new': S.draft={to:null,qp:'',items:[],comment:'',q:''}; S.view='new'; render(); window.scrollTo(0,0); setTimeout(()=>{const i=document.getElementById('qp'); if(i) i.focus();},50); break;
     case 'cancelnew': S.view='list'; render(); break;
@@ -653,17 +663,14 @@ document.addEventListener('input', e=>{
   const t = e.target;
   if(t.id==='q'){ S.draft.q=t.value; updSugQ(); }
   else if(t.id==='qp'){ S.draft.qp=t.value; updSugP(); }
-  else if(t.id==='codeInput'){ const v=t.value.replace(/\D/g,'').slice(0,6); if(t.value!==v) t.value=v;
-    const b=document.querySelector('[data-a=login]'); if(b) b.disabled = v.length!==6; document.getElementById('loginErr').textContent='';
-    if(v.length===6) doLogin(); }
+  else if(t.id==='qme'){ updMe(); }
   else if(t.id==='comment'){ S.draft.comment=t.value; }
   else if(t.dataset.qty!==undefined){ const it=S.draft.items.find(i=>i.product===t.dataset.qty); if(it){ it.qty=t.value; updSend(); } }
 });
 // Enter в поиске выбирает первую подсказку
 document.addEventListener('keydown', e=>{
   if(e.key!=='Enter') return;
-  if(e.target.id==='codeInput'){ e.preventDefault(); doLogin(); return; }
-  const box = e.target.id==='q' ? 'sugQ' : e.target.id==='qp' ? 'sugP' : null;
+  const box = e.target.id==='q' ? 'sugQ' : e.target.id==='qp' ? 'sugP' : e.target.id==='qme' ? 'melist' : null;
   if(!box) return; e.preventDefault();
   const first = document.querySelector('#'+box+' [data-a]'); if(first) first.click();
 });
